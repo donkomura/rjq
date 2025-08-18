@@ -95,9 +95,6 @@ impl App {
                     self.input.pop();
                 }
             }
-            KeyCode::Enter => {
-                self.input.clear();
-            }
             _ => {}
         }
         Ok(())
