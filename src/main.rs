@@ -7,19 +7,29 @@ use crossterm::{
 use ratatui::{
     Frame, Terminal,
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    widgets::Paragraph,
+    buffer::Buffer,
+    layout::{Constraint, Direction, Layout, Rect},
+    widgets::{Paragraph, Widget},
 };
 use std::{
     io::{self, Read, Result},
 };
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Action {
+    Quit,
+    Input(char),
+    Backspace,
+    Clear,
+    None,
+}
+
 #[derive(Default, Debug)]
 struct App {
-    prompt: String,
-    input: String,
-    exit: bool,
-    json_content: String,
+    pub prompt: String,
+    pub input: String,
+    pub exit: bool,
+    pub json_content: String,
 }
 
 impl App {
@@ -54,23 +64,9 @@ impl App {
     }
 
     fn draw(&self, frame: &mut Frame) {
-        let size = frame.area();
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
-            .split(size);
-
-        let prompt_text = format!("{}{}", self.prompt, self.input);
-        let prompt_paragraph = Paragraph::new(prompt_text.clone());
-        frame.render_widget(prompt_paragraph, chunks[0]);
-
-        let json_paragraph = Paragraph::new(self.json_content.as_str());
-        frame.render_widget(json_paragraph, chunks[1]);
-
+        frame.render_widget(self, frame.area());
+        
+        // カーソル位置は別途設定
         frame.set_cursor_position((
             (self.prompt.len() + self.input.len()) as u16,
             0,
@@ -78,26 +74,61 @@ impl App {
     }
 
     fn handle_events(&mut self, key_event: KeyEvent) -> Result<()> {
-        match key_event.code {
-            KeyCode::Esc => self.exit = true,
-            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.exit = true
-            }
-            KeyCode::Char(c) => {
-                if c == '\n' {
-                    self.input.clear();
-                } else {
-                    self.input.push(c);
-                }
-            }
-            KeyCode::Backspace => {
-                if !self.input.is_empty() {
-                    self.input.pop();
-                }
-            }
-            _ => {}
-        }
+        let action = get_action(key_event);
+        update(self, action);
         Ok(())
+    }
+}
+
+// イベントからアクションへのマッピング
+fn get_action(key_event: KeyEvent) -> Action {
+    match key_event.code {
+        KeyCode::Esc => Action::Quit,
+        KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => Action::Quit,
+        KeyCode::Char(c) => {
+            if c == '\n' {
+                Action::Clear
+            } else {
+                Action::Input(c)
+            }
+        }
+        KeyCode::Backspace => Action::Backspace,
+        KeyCode::Enter => Action::Clear,
+        _ => Action::None,
+    }
+}
+
+// アクションに基づく状態更新
+fn update(app: &mut App, action: Action) {
+    match action {
+        Action::Quit => app.exit = true,
+        Action::Input(c) => app.input.push(c),
+        Action::Backspace => {
+            if !app.input.is_empty() {
+                app.input.pop();
+            }
+        }
+        Action::Clear => app.input.clear(),
+        Action::None => {}
+    }
+}
+
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(area);
+
+        let prompt_text = format!("{}{}", self.prompt, self.input);
+        let prompt_paragraph = Paragraph::new(prompt_text);
+        prompt_paragraph.render(chunks[0], buf);
+
+        let json_paragraph = Paragraph::new(self.json_content.as_str());
+        json_paragraph.render(chunks[1], buf);
     }
 }
 
@@ -124,5 +155,68 @@ fn main() -> Result<()> {
         Ok(())
     } else {
         Err(result.unwrap_err())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_basic_input() {
+        let mut app = App {
+            prompt: "query > ".to_string(),
+            input: String::new(),
+            exit: false,
+            json_content: "{}".to_string(),
+        };
+        
+        // 基本的な入力テスト
+        let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+        app.handle_events(key_event).unwrap();
+        assert_eq!(app.input, "a");
+    }
+
+    #[test]
+    fn test_render() {
+        // 基本描画テスト（プロンプト + JSON）
+        let app = App {
+            prompt: "query > ".to_string(),
+            input: String::new(),
+            exit: false,
+            json_content: r#"{"name": "test"}"#.to_string(),
+        };
+        let mut buf = Buffer::empty(Rect::new(0, 0, 30, 3));
+        app.render(buf.area, &mut buf);
+
+        let prompt_line = buf.content[0..30].iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>();
+        assert!(prompt_line.contains("query >"));
+
+        let json_line = buf.content[30..60].iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>();
+        assert!(json_line.contains("name"));
+        assert!(json_line.contains("test"));
+
+        // 入力付き描画テスト
+        let mut app_with_input = App {
+            prompt: "query > ".to_string(),
+            input: String::new(),
+            exit: false,
+            json_content: "{}".to_string(),
+        };
+        update(&mut app_with_input, Action::Input('h'));
+        update(&mut app_with_input, Action::Input('i'));
+        
+        let mut input_buf = Buffer::empty(Rect::new(0, 0, 30, 2));
+        app_with_input.render(input_buf.area, &mut input_buf);
+
+        let input_prompt_line = input_buf.content[0..30].iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>();
+        assert!(input_prompt_line.contains("query > hi"));
     }
 }
