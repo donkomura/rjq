@@ -11,9 +11,8 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Paragraph, Widget},
 };
-use std::{
-    io::{self, Read, Result},
-};
+use serde_json::json;
+use std::io::{self, Read, Result};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -65,12 +64,9 @@ impl App {
 
     fn draw(&self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
-        
+
         // カーソル位置は別途設定
-        frame.set_cursor_position((
-            (self.prompt.len() + self.input.len()) as u16,
-            0,
-        ));
+        frame.set_cursor_position(((self.prompt.len() + self.input.len()) as u16, 0));
     }
 
     fn handle_events(&mut self, key_event: KeyEvent) -> Result<()> {
@@ -107,6 +103,7 @@ fn update(app: &mut App, action: Action) {
             if !app.input.is_empty() {
                 app.input.pop();
             }
+
         }
         Action::Clear => app.input.clear(),
         Action::None => {}
@@ -117,10 +114,7 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(area);
 
         let prompt_text = format!("{}{}", self.prompt, self.input);
@@ -171,7 +165,7 @@ mod tests {
             exit: false,
             json_content: "{}".to_string(),
         };
-        
+
         // 基本的な入力テスト
         let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         app.handle_events(key_event).unwrap();
@@ -190,12 +184,14 @@ mod tests {
         let mut buf = Buffer::empty(Rect::new(0, 0, 30, 3));
         app.render(buf.area, &mut buf);
 
-        let prompt_line = buf.content[0..30].iter()
+        let prompt_line = buf.content[0..30]
+            .iter()
             .map(|cell| cell.symbol())
             .collect::<String>();
         assert!(prompt_line.contains("query >"));
 
-        let json_line = buf.content[30..60].iter()
+        let json_line = buf.content[30..60]
+            .iter()
             .map(|cell| cell.symbol())
             .collect::<String>();
         assert!(json_line.contains("name"));
@@ -210,11 +206,12 @@ mod tests {
         };
         update(&mut app_with_input, Action::Input('h'));
         update(&mut app_with_input, Action::Input('i'));
-        
+
         let mut input_buf = Buffer::empty(Rect::new(0, 0, 30, 2));
         app_with_input.render(input_buf.area, &mut input_buf);
 
-        let input_prompt_line = input_buf.content[0..30].iter()
+        let input_prompt_line = input_buf.content[0..30]
+            .iter()
             .map(|cell| cell.symbol())
             .collect::<String>();
         assert!(input_prompt_line.contains("query > hi"));
