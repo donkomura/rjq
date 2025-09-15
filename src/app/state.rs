@@ -33,3 +33,33 @@ impl AppState {
         self.last_error = Some(error);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_state_input_operations() {
+        let mut state = AppState::new();
+        assert_eq!(state.input, "");
+
+        state.push_char('a');
+        state.push_char('b');
+        assert_eq!(state.input, "ab");
+
+        state.pop_char();
+        assert_eq!(state.input, "a");
+
+        state.clear_input();
+        assert_eq!(state.input, "");
+    }
+
+    #[test]
+    fn test_state_exit_flag() {
+        let mut state = AppState::new();
+        assert!(!state.exit);
+
+        state.set_exit(true);
+        assert!(state.exit);
+    }
+}

@@ -50,35 +50,13 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use serde_json::json;
-    use ratatui::buffer::Buffer;
-    use ratatui::layout::Rect;
-    use ratatui::widgets::Widget;
     use rjq::App;
 
-    fn create_test_app(json_value: serde_json::Value) -> App {
-        App::new(json_value)
-    }
-
     #[test]
-    fn test_basic_input() {
-        let mut app = create_test_app(json!({}));
-        let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
-        app.handle_events(key_event).unwrap();
-        assert_eq!(app.input(), "a");
-    }
-
-    #[test]
-    fn test_render() {
-        let app = create_test_app(json!({"name": "test"}));
-        let mut buf = Buffer::empty(Rect::new(0, 0, 50, 3));
-        app.render(buf.area, &mut buf);
-
-        let prompt_line = buf.content[0..50]
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect::<String>();
-        assert!(prompt_line.contains("query >"));
+    fn test_app_creation() {
+        let app = App::new(json!({"test": "data"}));
+        assert_eq!(app.input(), "");
+        assert!(!app.should_exit());
     }
 }

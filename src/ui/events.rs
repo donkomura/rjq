@@ -40,3 +40,21 @@ pub fn update(app: &mut App, action: Action) {
         Action::None => {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    #[test]
+    fn test_key_action_mapping() {
+        let action = get_action(crossterm::event::KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert_eq!(action, Action::Quit);
+
+        let action = get_action(crossterm::event::KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
+        assert_eq!(action, Action::Input('a'));
+
+        let action = get_action(crossterm::event::KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(action, Action::Backspace);
+    }
+}
