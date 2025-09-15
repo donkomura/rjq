@@ -1,9 +1,17 @@
+pub mod executor;
+pub mod cache;
+pub mod cached_executor;
+
 use jaq_core::{
     Ctx, RcIter,
     load::{Arena, File, Loader},
 };
 use jaq_json::Val;
 use crate::app::error::AppError;
+
+pub use executor::{QueryExecutor, JaqQueryExecutor};
+pub use cache::{QueryCache, InMemoryQueryCache};
+pub use cached_executor::CachedQueryExecutor;
 
 #[derive(Debug)]
 pub enum QueryResult {

@@ -1,4 +1,4 @@
-use rjq::{App, AppConfig};
+use rjq::{App, AppConfig, AppBuilder};
 use serde_json::json;
 
 #[test]
@@ -40,4 +40,36 @@ fn test_error_handling_integration() {
 
     // エラー状態のテスト
     assert!(app.last_error().is_none());
+}
+
+#[test]
+fn test_enhanced_app_with_cache() {
+    // Phase 3の新機能: キャッシュ付きアプリケーションのテスト
+    let json_data = json!({"name": "cache_test", "items": [1, 2, 3]});
+    let mut app = AppBuilder::new(json_data)
+        .with_cache()
+        .build();
+
+    // 基本的な動作確認
+    assert_eq!(app.input(), "");
+    assert!(!app.should_exit());
+
+    // 文字入力のテスト
+    app.push_char('.');
+    assert_eq!(app.input(), ".");
+}
+
+#[test]
+fn test_app_builder_pattern() {
+    // Phase 3の新機能: AppBuilderパターンのテスト
+    let json_data = json!({"builder": "test"});
+    let custom_config = AppConfig::with_prompt("builder > ");
+
+    let app = AppBuilder::new(json_data)
+        .with_config(custom_config)
+        .build();
+
+    assert_eq!(app.prompt(), "builder > ");
+    assert_eq!(app.input(), "");
+    assert!(!app.should_exit());
 }
