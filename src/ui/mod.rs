@@ -1,0 +1,84 @@
+pub mod events;
+
+use crossterm::{
+    event::{self, Event, KeyEvent},
+    execute,
+    terminal::{LeaveAlternateScreen, disable_raw_mode},
+};
+use ratatui::{
+    Frame, Terminal,
+    backend::Backend,
+    buffer::Buffer,
+    layout::{Constraint, Direction, Layout, Rect},
+    widgets::{Paragraph, Widget},
+};
+use crate::app::App;
+
+pub use events::{Action, get_action, update};
+
+impl App {
+    pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> crate::Result<()> {
+        while !self.should_exit() {
+            terminal.draw(|frame| self.draw(frame))?;
+            if let Event::Key(key_event) = event::read()? {
+                self.handle_events(key_event)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn draw(&self, frame: &mut Frame) {
+        frame.render_widget(self, frame.area());
+        frame.set_cursor_position(((self.prompt().len() + self.input().len()) as u16, 0));
+    }
+
+    pub fn handle_events(&mut self, key_event: KeyEvent) -> crate::Result<()> {
+        let action = get_action(key_event);
+        update(self, action);
+        Ok(())
+    }
+}
+
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .split(area);
+
+        let prompt_text = format!("{}{}", self.prompt(), self.input());
+        let prompt_paragraph = Paragraph::new(prompt_text);
+        prompt_paragraph.render(chunks[0], buf);
+
+        if let Some(error) = self.last_error() {
+            let error_text = format!("Error: {}", error);
+            let error_paragraph = Paragraph::new(error_text);
+            error_paragraph.render(chunks[1], buf);
+        } else {
+            let result_text = match self.execute_current_query() {
+                Ok(result) => result.format_pretty(),
+                Err(_) => {
+                    if self.input().is_empty() {
+                        serde_json::to_string_pretty(self.data().get())
+                            .unwrap_or_else(|_| "Error formatting JSON".to_string())
+                    } else {
+                        "".to_string()
+                    }
+                }
+            };
+            let json_paragraph = Paragraph::new(result_text);
+            json_paragraph.render(chunks[1], buf);
+        }
+    }
+}
+
+pub fn restore_terminal<B: Backend + std::io::Write>(terminal: &mut Terminal<B>) -> std::result::Result<(), std::io::Error> {
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        crossterm::event::DisableMouseCapture
+    )?;
+    disable_raw_mode()?;
+    terminal.show_cursor()?;
+    Ok(())
+}
