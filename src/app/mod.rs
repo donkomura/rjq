@@ -1,27 +1,11 @@
 pub mod error;
+pub mod config;
+pub mod state;
 
 use crate::query::JsonData;
 pub use error::AppError;
-
-#[derive(Debug, Clone)]
-pub struct AppConfig {
-    pub prompt: &'static str,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            prompt: "query > ",
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct AppState {
-    pub input: String,
-    pub exit: bool,
-    pub last_error: Option<AppError>,
-}
+pub use config::AppConfig;
+pub use state::AppState;
 
 #[derive(Debug)]
 pub struct App {
@@ -34,6 +18,14 @@ impl App {
     pub fn new(json_value: serde_json::Value) -> Self {
         Self {
             config: AppConfig::default(),
+            state: AppState::default(),
+            data: JsonData::new(json_value),
+        }
+    }
+
+    pub fn with_config(json_value: serde_json::Value, config: AppConfig) -> Self {
+        Self {
+            config,
             state: AppState::default(),
             data: JsonData::new(json_value),
         }
@@ -60,22 +52,21 @@ impl App {
         &self.data
     }
 
-    // 状態変更
+    // 状態変更（AppStateに委譲）
     pub fn set_exit(&mut self, exit: bool) {
-        self.state.exit = exit;
+        self.state.set_exit(exit);
     }
 
     pub fn clear_input(&mut self) {
-        self.state.input.clear();
-        self.state.last_error = None;
+        self.state.clear_input();
     }
 
     pub fn push_char(&mut self, c: char) {
-        self.state.input.push(c);
+        self.state.push_char(c);
     }
 
     pub fn pop_char(&mut self) {
-        self.state.input.pop();
+        self.state.pop_char();
     }
 
     // クエリ実行（計算結果を返すのみ、状態には保存しない）

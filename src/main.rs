@@ -39,7 +39,7 @@ fn main() -> Result<()> {
     let mut app = App::new(json_value);
     let res = app.run(&mut terminal);
 
-    rjq::ui::restore_terminal(&mut terminal).ok();
+    rjq::restore_terminal(&mut terminal).ok();
 
     if let Err(e) = res {
         eprintln!("Error: {}", e);
@@ -50,7 +50,6 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use serde_json::json;
     use ratatui::buffer::Buffer;
