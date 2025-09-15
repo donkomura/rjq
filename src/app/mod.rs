@@ -1,13 +1,13 @@
-pub mod error;
-pub mod config;
-pub mod state;
 pub mod builder;
+pub mod config;
+pub mod error;
+pub mod state;
 
 use crate::query::JsonData;
-pub use error::AppError;
-pub use config::AppConfig;
-pub use state::AppState;
 pub use builder::{AppBuilder, EnhancedApp};
+pub use config::AppConfig;
+pub use error::AppError;
+pub use state::AppState;
 
 #[derive(Debug)]
 pub struct App {

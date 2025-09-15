@@ -1,10 +1,10 @@
 use crate::app::error::AppError;
-use serde_json::Value;
 use jaq_core::{
     Ctx, RcIter,
     load::{Arena, File, Loader},
 };
 use jaq_json::Val;
+use serde_json::Value;
 
 pub trait QueryExecutor {
     fn execute(&self, data: &Value, query: &str) -> Result<Vec<Value>, AppError>;
@@ -24,9 +24,9 @@ impl QueryExecutor for JaqQueryExecutor {
         };
         let loader = Loader::new(jaq_std::defs().chain(jaq_json::defs()));
         let arena = Arena::default();
-        let modules = loader.load(&arena, program).map_err(|e| {
-            AppError::QueryCompile(format!("Loader: {:?}", e))
-        })?;
+        let modules = loader
+            .load(&arena, program)
+            .map_err(|e| AppError::QueryCompile(format!("Loader: {:?}", e)))?;
         let filter = jaq_core::Compiler::default()
             .with_funs(jaq_std::funs().chain(jaq_json::funs()))
             .compile(modules)

@@ -5,9 +5,7 @@ pub struct AppConfig {
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self {
-            prompt: "query > ",
-        }
+        Self { prompt: "query > " }
     }
 }
 

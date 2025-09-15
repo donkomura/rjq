@@ -4,7 +4,9 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::Backend};
 
-pub fn restore_terminal<B: Backend + std::io::Write>(terminal: &mut Terminal<B>) -> std::result::Result<(), std::io::Error> {
+pub fn restore_terminal<B: Backend + std::io::Write>(
+    terminal: &mut Terminal<B>,
+) -> std::result::Result<(), std::io::Error> {
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,

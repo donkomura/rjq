@@ -1,3 +1,5 @@
+use super::events::{get_action, update};
+use crate::app::App;
 use crossterm::event::{self, Event, KeyEvent};
 use ratatui::{
     Frame, Terminal,
@@ -6,8 +8,6 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Paragraph, Widget},
 };
-use crate::app::App;
-use super::events::{get_action, update};
 
 impl App {
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> crate::Result<()> {

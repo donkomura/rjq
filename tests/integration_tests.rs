@@ -1,4 +1,4 @@
-use rjq::{App, AppConfig, AppBuilder};
+use rjq::{App, AppBuilder, AppConfig};
 use serde_json::json;
 
 #[test]
@@ -46,9 +46,7 @@ fn test_error_handling_integration() {
 fn test_enhanced_app_with_cache() {
     // Phase 3の新機能: キャッシュ付きアプリケーションのテスト
     let json_data = json!({"name": "cache_test", "items": [1, 2, 3]});
-    let mut app = AppBuilder::new(json_data)
-        .with_cache()
-        .build();
+    let mut app = AppBuilder::new(json_data).with_cache().build();
 
     // 基本的な動作確認
     assert_eq!(app.input(), "");

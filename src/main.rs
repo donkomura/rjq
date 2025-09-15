@@ -1,12 +1,5 @@
-use crossterm::{
-    event::EnableMouseCapture,
-    execute,
-    terminal::enable_raw_mode,
-};
-use ratatui::{
-    Terminal,
-    backend::CrosstermBackend,
-};
+use crossterm::{event::EnableMouseCapture, execute, terminal::enable_raw_mode};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use serde_json::json;
 use std::io::{self, Read};
 
@@ -32,7 +25,11 @@ fn main() -> Result<()> {
 
     enable_raw_mode()?;
     let mut stderr = std::io::stderr();
-    execute!(stderr, crossterm::terminal::EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(
+        stderr,
+        crossterm::terminal::EnterAlternateScreen,
+        EnableMouseCapture
+    )?;
     let backend = CrosstermBackend::new(stderr);
     let mut terminal = Terminal::new(backend)?;
 
@@ -50,8 +47,8 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use rjq::App;
+    use serde_json::json;
 
     #[test]
     fn test_app_creation() {
