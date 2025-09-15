@@ -4,7 +4,7 @@
     "config:recommended",
     ":semanticCommitTypeAll(deps)"
   ],
-  "schedule": ["before 6am on monday"],
+  "schedule": ["at 10am on saturday"],
   "timezone": "Asia/Tokyo",
   "reviewers": ["donkomura"],
   "assignees": ["donkomura"],
@@ -42,7 +42,7 @@
   },
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "schedule": ["at 10am on saturday"]
   },
   "prHourlyLimit": 3,
   "prConcurrentLimit": 5,
