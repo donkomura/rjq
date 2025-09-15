@@ -1,17 +1,17 @@
-pub mod executor;
 pub mod cache;
 pub mod cached_executor;
+pub mod executor;
 
+use crate::app::error::AppError;
 use jaq_core::{
     Ctx, RcIter,
     load::{Arena, File, Loader},
 };
 use jaq_json::Val;
-use crate::app::error::AppError;
 
-pub use executor::{QueryExecutor, JaqQueryExecutor};
-pub use cache::{QueryCache, InMemoryQueryCache};
+pub use cache::{InMemoryQueryCache, QueryCache};
 pub use cached_executor::CachedQueryExecutor;
+pub use executor::{JaqQueryExecutor, QueryExecutor};
 
 #[derive(Debug)]
 pub enum QueryResult {
@@ -23,14 +23,10 @@ pub enum QueryResult {
 impl QueryResult {
     pub fn format_pretty(&self) -> String {
         match self {
-            QueryResult::Single(val) => {
-                serde_json::to_string_pretty(val)
-                    .unwrap_or_else(|_| "Error formatting result".to_string())
-            }
-            QueryResult::Multiple(vals) => {
-                serde_json::to_string_pretty(vals)
-                    .unwrap_or_else(|_| "Error formatting result".to_string())
-            }
+            QueryResult::Single(val) => serde_json::to_string_pretty(val)
+                .unwrap_or_else(|_| "Error formatting result".to_string()),
+            QueryResult::Multiple(vals) => serde_json::to_string_pretty(vals)
+                .unwrap_or_else(|_| "Error formatting result".to_string()),
             QueryResult::Empty => "null".to_string(),
         }
     }
@@ -61,9 +57,9 @@ impl JsonData {
         };
         let loader = Loader::new(jaq_std::defs().chain(jaq_json::defs()));
         let arena = Arena::default();
-        let modules = loader.load(&arena, program).map_err(|e| {
-            AppError::QueryCompile(format!("Loader: {:?}", e))
-        })?;
+        let modules = loader
+            .load(&arena, program)
+            .map_err(|e| AppError::QueryCompile(format!("Loader: {:?}", e)))?;
         let filter = jaq_core::Compiler::default()
             .with_funs(jaq_std::funs().chain(jaq_json::funs()))
             .compile(modules)

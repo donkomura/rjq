@@ -1,9 +1,9 @@
+use super::{QueryCache, QueryExecutor};
+use crate::app::error::AppError;
+use serde_json::Value;
+use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::cell::RefCell;
-use serde_json::Value;
-use crate::app::error::AppError;
-use super::{QueryExecutor, QueryCache};
 
 pub struct CachedQueryExecutor<E: QueryExecutor, C: QueryCache> {
     executor: E,
@@ -14,7 +14,7 @@ impl<E: QueryExecutor, C: QueryCache> CachedQueryExecutor<E, C> {
     pub fn new(executor: E, cache: C) -> Self {
         Self {
             executor,
-            cache: RefCell::new(cache)
+            cache: RefCell::new(cache),
         }
     }
 
@@ -44,7 +44,7 @@ impl<E: QueryExecutor, C: QueryCache> QueryExecutor for CachedQueryExecutor<E, C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::{JaqQueryExecutor, InMemoryQueryCache};
+    use crate::query::{InMemoryQueryCache, JaqQueryExecutor};
     use serde_json::json;
 
     #[test]
@@ -66,9 +66,12 @@ mod tests {
     #[test]
     fn test_cache_key_generation() {
         let data = json!({"test": "data"});
-        let key1 = CachedQueryExecutor::<JaqQueryExecutor, InMemoryQueryCache>::cache_key(&data, ".test");
-        let key2 = CachedQueryExecutor::<JaqQueryExecutor, InMemoryQueryCache>::cache_key(&data, ".test");
-        let key3 = CachedQueryExecutor::<JaqQueryExecutor, InMemoryQueryCache>::cache_key(&data, ".other");
+        let key1 =
+            CachedQueryExecutor::<JaqQueryExecutor, InMemoryQueryCache>::cache_key(&data, ".test");
+        let key2 =
+            CachedQueryExecutor::<JaqQueryExecutor, InMemoryQueryCache>::cache_key(&data, ".test");
+        let key3 =
+            CachedQueryExecutor::<JaqQueryExecutor, InMemoryQueryCache>::cache_key(&data, ".other");
 
         assert_eq!(key1, key2);
         assert_ne!(key1, key3);

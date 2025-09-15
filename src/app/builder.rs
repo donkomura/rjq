@@ -1,7 +1,7 @@
-use crate::query::{QueryExecutor, JaqQueryExecutor, InMemoryQueryCache, CachedQueryExecutor};
-use crate::ui::{EventHandler, DefaultEventHandler};
 use super::{AppConfig, AppState};
 use crate::query::JsonData;
+use crate::query::{CachedQueryExecutor, InMemoryQueryCache, JaqQueryExecutor, QueryExecutor};
+use crate::ui::{DefaultEventHandler, EventHandler};
 
 pub struct AppBuilder<Q, E>
 where
@@ -54,7 +54,8 @@ where
     }
 
     pub fn with_cache(self) -> AppBuilder<CachedQueryExecutor<Q, InMemoryQueryCache>, E> {
-        let cached_executor = CachedQueryExecutor::new(self.query_executor, InMemoryQueryCache::new());
+        let cached_executor =
+            CachedQueryExecutor::new(self.query_executor, InMemoryQueryCache::new());
         AppBuilder {
             json_value: self.json_value,
             config: self.config,
@@ -123,10 +124,14 @@ impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
     // 強化されたクエリ実行メソッド（依存性注入されたExecutorを使用）
     pub fn execute_current_query(&self) -> crate::Result<crate::query::QueryResult> {
         if self.state.input.is_empty() {
-            return Err(crate::app::error::AppError::QueryCompile("Empty query".to_string()));
+            return Err(crate::app::error::AppError::QueryCompile(
+                "Empty query".to_string(),
+            ));
         }
 
-        let results = self.query_executor.execute(self.data.get(), &self.state.input)?;
+        let results = self
+            .query_executor
+            .execute(self.data.get(), &self.state.input)?;
 
         Ok(match results.len() {
             0 => crate::query::QueryResult::Empty,
@@ -163,8 +168,7 @@ mod tests {
 
     #[test]
     fn test_app_builder_basic() {
-        let app = AppBuilder::new(json!({"test": "data"}))
-            .build();
+        let app = AppBuilder::new(json!({"test": "data"})).build();
 
         assert_eq!(app.input(), "");
         assert!(!app.should_exit());

@@ -1,6 +1,6 @@
-use crossterm::event::KeyEvent;
-use crate::ui::events::Action;
 use crate::app::App;
+use crate::ui::events::Action;
+use crossterm::event::KeyEvent;
 
 pub trait EventHandler {
     fn handle_key_event(&self, key_event: KeyEvent) -> Action;
