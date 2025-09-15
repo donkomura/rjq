@@ -20,3 +20,20 @@ impl AppConfig {
         Self { prompt }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = AppConfig::default();
+        assert_eq!(config.prompt, "query > ");
+    }
+
+    #[test]
+    fn test_custom_prompt() {
+        let config = AppConfig::with_prompt("custom > ");
+        assert_eq!(config.prompt, "custom > ");
+    }
+}

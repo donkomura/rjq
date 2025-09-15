@@ -76,3 +76,34 @@ impl JsonData {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_json_data_creation() {
+        let data = JsonData::new(json!({"test": "value"}));
+        assert_eq!(data.get(), &json!({"test": "value"}));
+    }
+
+    #[test]
+    fn test_identity_query() {
+        let data = JsonData::new(json!({"name": "test"}));
+        let result = data.execute_query(".").unwrap();
+
+        match result {
+            QueryResult::Single(val) => assert_eq!(val, json!({"name": "test"})),
+            _ => panic!("Expected single result"),
+        }
+    }
+
+    #[test]
+    fn test_query_formatting() {
+        let result = QueryResult::Single(json!({"key": "value"}));
+        let formatted = result.format_pretty();
+        assert!(formatted.contains("key"));
+        assert!(formatted.contains("value"));
+    }
+}
