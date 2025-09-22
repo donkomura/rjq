@@ -82,28 +82,28 @@ mod tests {
     #[test]
     fn test_cli_args_default() {
         use clap::Parser;
-        let args = CliArgs::parse_from(&["rjq"]);
+        let args = CliArgs::parse_from(["rjq"]);
         assert_eq!(args.file, None);
     }
 
     #[test]
     fn test_cli_args_with_file_long() {
         use clap::Parser;
-        let args = CliArgs::parse_from(&["rjq", "--file", "test.json"]);
+        let args = CliArgs::parse_from(["rjq", "--file", "test.json"]);
         assert_eq!(args.file, Some("test.json".to_string()));
     }
 
     #[test]
     fn test_cli_args_with_file_short() {
         use clap::Parser;
-        let args = CliArgs::parse_from(&["rjq", "-f", "test.json"]);
+        let args = CliArgs::parse_from(["rjq", "-f", "test.json"]);
         assert_eq!(args.file, Some("test.json".to_string()));
     }
 
     #[test]
     fn test_cli_args_help() {
         use clap::Parser;
-        let result = CliArgs::try_parse_from(&["rjq", "--help"]);
+        let result = CliArgs::try_parse_from(["rjq", "--help"]);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_load_json_from_stdin_empty() {
         use clap::Parser;
-        let args = CliArgs::parse_from(&["rjq"]);
+        let args = CliArgs::parse_from(["rjq"]);
         let result = load_json_data(&args, "").unwrap();
         assert_eq!(result, serde_json::Value::String(String::new()));
     }
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn test_load_json_from_stdin_with_data() {
         use clap::Parser;
-        let args = CliArgs::parse_from(&["rjq"]);
+        let args = CliArgs::parse_from(["rjq"]);
         let input = r#"{"key": "value"}"#;
         let result = load_json_data(&args, input).unwrap();
         assert_eq!(result, json!({"key": "value"}));
@@ -135,7 +135,7 @@ mod tests {
         // Create temporary test file
         fs::write(temp_file, test_data.to_string()).expect("Failed to write test file");
 
-        let args = CliArgs::parse_from(&["rjq", "-f", temp_file]);
+        let args = CliArgs::parse_from(["rjq", "-f", temp_file]);
         let result = load_json_data(&args, "").unwrap();
 
         // Clean up
