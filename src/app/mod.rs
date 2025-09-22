@@ -54,6 +54,10 @@ impl App {
         &self.data
     }
 
+    pub fn scroll_offset(&self) -> usize {
+        self.state.scroll_offset
+    }
+
     // 状態変更（AppStateに委譲）
     pub fn set_exit(&mut self, exit: bool) {
         self.state.set_exit(exit);
@@ -69,6 +73,39 @@ impl App {
 
     pub fn pop_char(&mut self) {
         self.state.pop_char();
+    }
+
+    pub fn scroll_up(&mut self) {
+        self.state.scroll_up();
+    }
+
+    pub fn scroll_down(&mut self) {
+        // Apply dynamic bounds based on current content
+        let content = match self.execute_current_query() {
+            Ok(result) => result.format_pretty(),
+            Err(_) => {
+                if self.input().is_empty() {
+                    serde_json::to_string_pretty(self.data.get())
+                        .unwrap_or_else(|_| "Error formatting JSON".to_string())
+                } else {
+                    "".to_string()
+                }
+            }
+        };
+
+        let total_lines = content.lines().count();
+        // Use a reasonable default for visible height (will be overridden by UI)
+        let default_visible_height = 20;
+        self.state.scroll_down_bounded(total_lines, default_visible_height);
+    }
+
+    pub fn scroll_down_with_content(&mut self, content: &str, visible_height: usize) {
+        let total_lines = content.lines().count();
+        self.state.scroll_down_bounded(total_lines, visible_height);
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.state.reset_scroll();
     }
 
     // クエリ実行（計算結果を返すのみ、状態には保存しない）

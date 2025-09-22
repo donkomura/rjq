@@ -59,7 +59,21 @@ impl Widget for &App {
                     }
                 }
             };
-            let json_paragraph = Paragraph::new(result_text);
+
+            // Apply scrolling by skipping lines based on scroll_offset
+            let lines: Vec<&str> = result_text.lines().collect();
+            let available_height = chunks[1].height as usize;
+
+            // Use current scroll offset as-is (bounds are enforced during scroll operations)
+            let scroll_offset = self.scroll_offset();
+            let visible_lines: Vec<&str> = lines.iter()
+                .skip(scroll_offset)
+                .take(available_height)
+                .copied()
+                .collect();
+            let scrolled_text = visible_lines.join("\n");
+
+            let json_paragraph = Paragraph::new(scrolled_text);
             json_paragraph.render(chunks[1], buf);
         }
     }
