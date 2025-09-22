@@ -22,7 +22,7 @@ fn load_json_data(args: &CliArgs, stdin_input: &str) -> Result<serde_json::Value
         let file_content = fs::read_to_string(file_path)?;
         Ok(serde_json::from_str(&file_content)?)
     } else if stdin_input.trim().is_empty() {
-        Ok(serde_json::Value::String(String::new()))
+        Ok(serde_json::Value::Null)
     } else {
         Ok(serde_json::from_str(stdin_input)?)
     }
