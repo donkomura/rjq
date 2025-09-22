@@ -142,7 +142,8 @@ impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
         let total_lines = content.lines().count();
         // Use a reasonable default for visible height
         let default_visible_height = 20;
-        self.state.scroll_down_bounded(total_lines, default_visible_height);
+        self.state
+            .scroll_down_bounded(total_lines, default_visible_height);
     }
 
     pub fn scroll_down_with_content(&mut self, content: &str, visible_height: usize) {

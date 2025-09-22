@@ -1,8 +1,8 @@
 use clap::Parser;
 use crossterm::{event::EnableMouseCapture, execute, terminal::enable_raw_mode};
 use ratatui::{Terminal, backend::CrosstermBackend};
-use std::io::{self, Read};
 use std::fs;
+use std::io::{self, Read};
 
 use rjq::{App, Result};
 
@@ -16,7 +16,6 @@ struct CliArgs {
     #[arg(short, long, value_name = "FILE")]
     file: Option<String>,
 }
-
 
 fn load_json_data(args: &CliArgs, stdin_input: &str) -> Result<serde_json::Value> {
     if let Some(file_path) = &args.file {

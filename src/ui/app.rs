@@ -66,7 +66,8 @@ impl Widget for &App {
 
             // Use current scroll offset as-is (bounds are enforced during scroll operations)
             let scroll_offset = self.scroll_offset();
-            let visible_lines: Vec<&str> = lines.iter()
+            let visible_lines: Vec<&str> = lines
+                .iter()
                 .skip(scroll_offset)
                 .take(available_height)
                 .copied()
