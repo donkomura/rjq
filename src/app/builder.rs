@@ -121,6 +121,43 @@ impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
         self.state.pop_char();
     }
 
+    pub fn scroll_up(&mut self) {
+        self.state.scroll_up();
+    }
+
+    pub fn scroll_down(&mut self) {
+        // Apply dynamic bounds based on current content
+        let content = match self.execute_current_query() {
+            Ok(result) => result.format_pretty(),
+            Err(_) => {
+                if self.state.input.is_empty() {
+                    serde_json::to_string_pretty(self.data.get())
+                        .unwrap_or_else(|_| "Error formatting JSON".to_string())
+                } else {
+                    "".to_string()
+                }
+            }
+        };
+
+        let total_lines = content.lines().count();
+        // Use a reasonable default for visible height
+        let default_visible_height = 20;
+        self.state.scroll_down_bounded(total_lines, default_visible_height);
+    }
+
+    pub fn scroll_down_with_content(&mut self, content: &str, visible_height: usize) {
+        let total_lines = content.lines().count();
+        self.state.scroll_down_bounded(total_lines, visible_height);
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.state.reset_scroll();
+    }
+
+    pub fn scroll_offset(&self) -> usize {
+        self.state.scroll_offset
+    }
+
     // 強化されたクエリ実行メソッド（依存性注入されたExecutorを使用）
     pub fn execute_current_query(&self) -> crate::Result<crate::query::QueryResult> {
         if self.state.input.is_empty() {
@@ -149,13 +186,22 @@ impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
     fn update_with_action(&mut self, action: crate::ui::Action) {
         match action {
             crate::ui::Action::Quit => self.set_exit(true),
-            crate::ui::Action::Input(c) => self.push_char(c),
+            crate::ui::Action::Input(c) => {
+                self.push_char(c);
+                self.reset_scroll();
+            }
             crate::ui::Action::Backspace => {
                 if !self.input().is_empty() {
                     self.pop_char();
                 }
+                self.reset_scroll();
             }
-            crate::ui::Action::Clear => self.clear_input(),
+            crate::ui::Action::Clear => {
+                self.clear_input();
+                self.reset_scroll();
+            }
+            crate::ui::Action::ScrollUp => self.scroll_up(),
+            crate::ui::Action::ScrollDown => self.scroll_down(),
             crate::ui::Action::None => {}
         }
     }
