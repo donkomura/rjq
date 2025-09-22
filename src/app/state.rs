@@ -47,11 +47,7 @@ impl AppState {
     }
 
     pub fn scroll_down_bounded(&mut self, total_lines: usize, visible_height: usize) {
-        let max_scroll = if total_lines > visible_height {
-            total_lines - visible_height
-        } else {
-            0
-        };
+        let max_scroll = total_lines.saturating_sub(visible_height);
 
         if self.scroll_offset < max_scroll {
             self.scroll_offset += 1;
