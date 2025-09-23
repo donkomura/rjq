@@ -20,25 +20,18 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-latest
-            archive: tar
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            archive: tar
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
-            archive: tar
           - target: x86_64-apple-darwin
             os: macos-latest
-            archive: tar
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            archive: tar
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            archive: tar
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            archive: zip
 
     steps:
       - name: Checkout
@@ -49,5 +42,4 @@ jobs:
         with:
           bin: rjq
           target: ${{ matrix.target }}
-          archive: ${{ matrix.archive }}
           token: ${{ secrets.GITHUB_TOKEN }}
