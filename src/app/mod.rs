@@ -9,11 +9,40 @@ pub use config::AppConfig;
 pub use error::AppError;
 pub use state::AppState;
 
+/// コンテンツ生成のための共通トレイト
+pub trait ContentGenerator {
+    /// 現在のコンテンツを生成する
+    fn generate_current_content(&self) -> String;
+
+    /// スクロール可能なコンテンツの行数を取得する
+    fn get_total_lines(&self) -> usize;
+}
+
 #[derive(Debug)]
 pub struct App {
     config: AppConfig,
     state: AppState,
     data: JsonData,
+}
+
+impl ContentGenerator for App {
+    fn generate_current_content(&self) -> String {
+        match self.execute_current_query() {
+            Ok(result) => result.format_pretty(),
+            Err(_) => {
+                if self.input().is_empty() {
+                    serde_json::to_string_pretty(self.data.get())
+                        .unwrap_or_else(|_| "Error formatting JSON".to_string())
+                } else {
+                    "".to_string()
+                }
+            }
+        }
+    }
+
+    fn get_total_lines(&self) -> usize {
+        self.generate_current_content().lines().count()
+    }
 }
 
 impl App {
@@ -86,7 +115,7 @@ impl App {
         self.state.scroll_down_bounded(total_lines, visible_height);
     }
 
-    pub fn generate_current_content(&self) -> String {
+    fn generate_current_content(&self) -> String {
         match self.execute_current_query() {
             Ok(result) => result.format_pretty(),
             Err(_) => {
@@ -100,9 +129,8 @@ impl App {
         }
     }
 
-    pub fn scroll_down_with_content(&mut self, content: &str, visible_height: usize) {
-        let total_lines = content.lines().count();
-        self.state.scroll_down_bounded(total_lines, visible_height);
+    fn get_total_lines(&self) -> usize {
+        self.generate_current_content().lines().count()
     }
 
     pub fn reset_scroll(&mut self) {

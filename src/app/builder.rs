@@ -1,4 +1,4 @@
-use super::{AppConfig, AppState};
+use super::{AppConfig, AppState, ContentGenerator};
 use crate::query::JsonData;
 use crate::query::{CachedQueryExecutor, InMemoryQueryCache, JaqQueryExecutor, QueryExecutor};
 use crate::ui::{DefaultEventHandler, EventHandler};
@@ -83,6 +83,26 @@ pub struct EnhancedApp<Q: QueryExecutor, E: EventHandler> {
     event_handler: E,
 }
 
+impl<Q: QueryExecutor, E: EventHandler> ContentGenerator for EnhancedApp<Q, E> {
+    fn generate_current_content(&self) -> String {
+        match self.execute_current_query() {
+            Ok(result) => result.format_pretty(),
+            Err(_) => {
+                if self.state.input.is_empty() {
+                    serde_json::to_string_pretty(self.data.get())
+                        .unwrap_or_else(|_| "Error formatting JSON".to_string())
+                } else {
+                    "".to_string()
+                }
+            }
+        }
+    }
+
+    fn get_total_lines(&self) -> usize {
+        self.generate_current_content().lines().count()
+    }
+}
+
 impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
     // 既存のApp APIと互換性を保つメソッド群
     pub fn input(&self) -> &str {
@@ -126,28 +146,8 @@ impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
     }
 
     pub fn scroll_down(&mut self) {
-        let content = self.generate_current_content();
-        let total_lines = content.lines().count();
+        let total_lines = self.get_total_lines();
         let visible_height = self.config.visible_height;
-        self.state.scroll_down_bounded(total_lines, visible_height);
-    }
-
-    pub fn generate_current_content(&self) -> String {
-        match self.execute_current_query() {
-            Ok(result) => result.format_pretty(),
-            Err(_) => {
-                if self.state.input.is_empty() {
-                    serde_json::to_string_pretty(self.data.get())
-                        .unwrap_or_else(|_| "Error formatting JSON".to_string())
-                } else {
-                    "".to_string()
-                }
-            }
-        }
-    }
-
-    pub fn scroll_down_with_content(&mut self, content: &str, visible_height: usize) {
-        let total_lines = content.lines().count();
         self.state.scroll_down_bounded(total_lines, visible_height);
     }
 
