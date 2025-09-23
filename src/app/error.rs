@@ -8,6 +8,6 @@ pub enum AppError {
     QueryCompile(String),
     #[error("Query execution error: {0}")]
     QueryExecution(String),
-    #[error("Terminal error: {0}")]
-    Terminal(#[from] std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
