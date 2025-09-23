@@ -1,6 +1,6 @@
 # rjq
 
-インタラクティブなJSON queryのためのCLIツール。
+An interactive CLI tool for JSON querying.
 
 ## Features
 
