@@ -18,56 +18,20 @@ jobs:
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
+          - aarch64-apple-darwin
           - aarch64-unknown-linux-gnu
           - aarch64-unknown-linux-musl
           - x86_64-apple-darwin
-          - aarch64-apple-darwin
-          - x86_64-pc-windows-gnu
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Upload Rust binary
+        uses: taiki-e/upload-rust-binary-action@v1
         with:
-          targets: ${{ matrix.target }}
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
-      - name: Install cross
-        uses: taiki-e/install-action@cross
-
-      - name: Build
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Package (*nix)
-        if: matrix.target != 'x86_64-pc-windows-gnu'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar czvf ../../../rjq-${{ github.ref_name }}-${{ matrix.target }}.tar.gz rjq
-          cd -
-
-      - name: Package (Windows)
-        if: matrix.target == 'x86_64-pc-windows-gnu'
-        run: |
-          cd target/${{ matrix.target }}/release
-          7z a ../../../rjq-${{ github.ref_name }}-${{ matrix.target }}.zip rjq.exe
-          cd -
-
-      - name: Upload (*nix)
-        if: matrix.target != 'x86_64-pc-windows-gnu'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: rjq-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
-
-      - name: Upload (Windows)
-        if: matrix.target == 'x86_64-pc-windows-gnu'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: rjq-${{ github.ref_name }}-${{ matrix.target }}.zip
+          bin: rjq
+          target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
