@@ -1,4 +1,5 @@
 use super::events::{get_action, update};
+use super::syntax::SyntaxHighlighter;
 use crate::app::App;
 use crossterm::event::{self, Event, KeyEvent};
 use ratatui::{
@@ -6,6 +7,7 @@ use ratatui::{
     backend::Backend,
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
+    text::Line,
     widgets::{Paragraph, Widget},
 };
 
@@ -39,8 +41,16 @@ impl Widget for &App {
             .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(area);
 
-        let prompt_text = format!("{}{}", self.prompt(), self.input());
-        let prompt_paragraph = Paragraph::new(prompt_text);
+        // シンタックスハイライトを適用したプロンプト行を作成
+        let highlighter = SyntaxHighlighter::new();
+        let mut prompt_line = Line::from(self.prompt());
+
+        if !self.input().is_empty() {
+            let highlighted_spans = highlighter.highlight(self.input());
+            prompt_line.spans.extend(highlighted_spans);
+        }
+
+        let prompt_paragraph = Paragraph::new(prompt_line);
         prompt_paragraph.render(chunks[0], buf);
 
         if let Some(error) = self.last_error() {
