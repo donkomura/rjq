@@ -5,81 +5,69 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-release:
-    name: Build and Release
-    runs-on: ${{ matrix.os }}
+  release:
+    name: Release
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: rjq
-            asset_name: rjq-linux-x86_64
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            artifact_name: rjq
-            asset_name: rjq-linux-x86_64-musl
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: rjq
-            asset_name: rjq-macos-x86_64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: rjq
-            asset_name: rjq-macos-aarch64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: rjq.exe
-            asset_name: rjq-windows-x86_64.exe
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - x86_64-pc-windows-gnu
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
-      - name: Install musl tools
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: sudo apt-get install -y musl-tools
+      - name: Install cross
+        uses: taiki-e/install-action@cross
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }}
 
-      - name: Create tarball (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Package (*nix)
+        if: matrix.target != 'x86_64-pc-windows-gnu'
         run: |
-          mkdir -p dist
-          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} dist/
-          cd dist
-          tar -czvf ${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../rjq-${{ github.ref_name }}-${{ matrix.target }}.tar.gz rjq
+          cd -
 
-      - name: Create zip (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Package (Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
         run: |
-          mkdir dist
-          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} dist/
-          cd dist
-          Compress-Archive -Path ${{ matrix.artifact_name }} -DestinationPath ${{ matrix.asset_name }}.zip
+          cd target/${{ matrix.target }}/release
+          7z a ../../../rjq-${{ github.ref_name }}-${{ matrix.target }}.zip rjq.exe
+          cd -
 
-      - name: Upload Release Asset (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Upload (*nix)
+        if: matrix.target != 'x86_64-pc-windows-gnu'
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/${{ matrix.asset_name }}.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: rjq-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
 
-      - name: Upload Release Asset (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload (Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/${{ matrix.asset_name }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: rjq-${{ github.ref_name }}-${{ matrix.target }}.zip
