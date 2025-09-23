@@ -7,6 +7,8 @@ pub enum Action {
     Input(char),
     Backspace,
     Clear,
+    ScrollUp,
+    ScrollDown,
     None,
 }
 
@@ -14,6 +16,8 @@ pub fn get_action(key_event: KeyEvent) -> Action {
     match key_event.code {
         KeyCode::Esc => Action::Quit,
         KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => Action::Quit,
+        KeyCode::Up => Action::ScrollUp,
+        KeyCode::Down => Action::ScrollDown,
         KeyCode::Char(c) => {
             if c == '\n' {
                 Action::Clear
@@ -30,13 +34,22 @@ pub fn get_action(key_event: KeyEvent) -> Action {
 pub fn update(app: &mut App, action: Action) {
     match action {
         Action::Quit => app.set_exit(true),
-        Action::Input(c) => app.push_char(c),
+        Action::Input(c) => {
+            app.push_char(c);
+            app.reset_scroll();
+        }
         Action::Backspace => {
             if !app.input().is_empty() {
                 app.pop_char();
             }
+            app.reset_scroll();
         }
-        Action::Clear => app.clear_input(),
+        Action::Clear => {
+            app.clear_input();
+            app.reset_scroll();
+        }
+        Action::ScrollUp => app.scroll_up(),
+        Action::ScrollDown => app.scroll_down(),
         Action::None => {}
     }
 }
@@ -65,5 +78,17 @@ mod tests {
             KeyModifiers::NONE,
         ));
         assert_eq!(action, Action::Backspace);
+
+        let action = get_action(crossterm::event::KeyEvent::new(
+            KeyCode::Up,
+            KeyModifiers::NONE,
+        ));
+        assert_eq!(action, Action::ScrollUp);
+
+        let action = get_action(crossterm::event::KeyEvent::new(
+            KeyCode::Down,
+            KeyModifiers::NONE,
+        ));
+        assert_eq!(action, Action::ScrollDown);
     }
 }

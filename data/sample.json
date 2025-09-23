@@ -1,0 +1,48 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "age": 28,
+      "address": {
+        "street": "123 Main St",
+        "city": "Tokyo",
+        "country": "Japan"
+      },
+      "skills": ["JavaScript", "React", "Node.js"],
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "age": 34,
+      "address": {
+        "street": "456 Oak Ave",
+        "city": "Osaka",
+        "country": "Japan"
+      },
+      "skills": ["Python", "Django", "PostgreSQL"],
+      "active": false
+    },
+    {
+      "id": 3,
+      "name": "Carol Davis",
+      "email": "carol@example.com",
+      "age": 25,
+      "address": {
+        "street": "789 Pine Rd",
+        "city": "Kyoto",
+        "country": "Japan"
+      },
+      "skills": ["Rust", "Go", "Docker"],
+      "active": true
+    }
+  ],
+  "metadata": {
+    "total_users": 3,
+    "created_at": "2024-01-15T10:30:00Z",
+    "version": "1.0"
+  }
+}
