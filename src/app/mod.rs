@@ -80,8 +80,14 @@ impl App {
     }
 
     pub fn scroll_down(&mut self) {
-        // Apply dynamic bounds based on current content
-        let content = match self.execute_current_query() {
+        let content = self.generate_current_content();
+        let total_lines = content.lines().count();
+        let visible_height = self.config.visible_height;
+        self.state.scroll_down_bounded(total_lines, visible_height);
+    }
+
+    pub fn generate_current_content(&self) -> String {
+        match self.execute_current_query() {
             Ok(result) => result.format_pretty(),
             Err(_) => {
                 if self.input().is_empty() {
@@ -91,13 +97,7 @@ impl App {
                     "".to_string()
                 }
             }
-        };
-
-        let total_lines = content.lines().count();
-        // Use a reasonable default for visible height (will be overridden by UI)
-        let default_visible_height = 20;
-        self.state
-            .scroll_down_bounded(total_lines, default_visible_height);
+        }
     }
 
     pub fn scroll_down_with_content(&mut self, content: &str, visible_height: usize) {

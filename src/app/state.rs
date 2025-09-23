@@ -40,12 +40,6 @@ impl AppState {
         }
     }
 
-    pub fn scroll_down(&mut self) {
-        // Basic scroll without bounds (for backward compatibility)
-        // Bounds should be enforced by the calling context
-        self.scroll_offset += 1;
-    }
-
     pub fn scroll_down_bounded(&mut self, total_lines: usize, visible_height: usize) {
         let max_scroll = total_lines.saturating_sub(visible_height);
 
@@ -93,11 +87,15 @@ mod tests {
         let mut state = AppState::new();
         assert_eq!(state.scroll_offset, 0);
 
-        // Test scroll down
-        state.scroll_down();
+        // Test scroll up (at boundary should not go below 0)
+        state.scroll_up();
+        assert_eq!(state.scroll_offset, 0);
+
+        // Test bounded scroll down
+        state.scroll_down_bounded(10, 5);
         assert_eq!(state.scroll_offset, 1);
 
-        state.scroll_down();
+        state.scroll_down_bounded(10, 5);
         assert_eq!(state.scroll_offset, 2);
 
         // Test scroll up
@@ -107,13 +105,9 @@ mod tests {
         state.scroll_up();
         assert_eq!(state.scroll_offset, 0);
 
-        // Test scroll up at boundary (should not go below 0)
-        state.scroll_up();
-        assert_eq!(state.scroll_offset, 0);
-
         // Test reset scroll
-        state.scroll_down();
-        state.scroll_down();
+        state.scroll_down_bounded(10, 5);
+        state.scroll_down_bounded(10, 5);
         state.reset_scroll();
         assert_eq!(state.scroll_offset, 0);
     }

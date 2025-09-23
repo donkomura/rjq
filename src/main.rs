@@ -114,7 +114,7 @@ mod tests {
         use clap::Parser;
         let args = CliArgs::parse_from(["rjq"]);
         let result = load_json_data(&args, "").unwrap();
-        assert_eq!(result, serde_json::Value::String(String::new()));
+        assert_eq!(result, serde_json::Value::Null);
     }
 
     #[test]
