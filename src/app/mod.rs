@@ -109,28 +109,9 @@ impl App {
     }
 
     pub fn scroll_down(&mut self) {
-        let content = self.generate_current_content();
-        let total_lines = content.lines().count();
+        let total_lines = self.get_total_lines();
         let visible_height = self.config.visible_height;
         self.state.scroll_down_bounded(total_lines, visible_height);
-    }
-
-    fn generate_current_content(&self) -> String {
-        match self.execute_current_query() {
-            Ok(result) => result.format_pretty(),
-            Err(_) => {
-                if self.input().is_empty() {
-                    serde_json::to_string_pretty(self.data.get())
-                        .unwrap_or_else(|_| "Error formatting JSON".to_string())
-                } else {
-                    "".to_string()
-                }
-            }
-        }
-    }
-
-    fn get_total_lines(&self) -> usize {
-        self.generate_current_content().lines().count()
     }
 
     pub fn reset_scroll(&mut self) {
