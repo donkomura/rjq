@@ -4,7 +4,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::fs;
 use std::io::{self, Read};
 
-use rjq::{App, Result};
+use rjq::{App, Result, restore_terminal};
 
 /// A command-line jq processor with interactive TUI
 #[derive(Parser, Debug, Clone, PartialEq)]
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     let mut app = App::new(json_value);
     let res = app.run(&mut terminal);
 
-    rjq::restore_terminal(&mut terminal).ok();
+    restore_terminal(&mut terminal).ok();
 
     if let Err(e) = res {
         eprintln!("Error: {}", e);

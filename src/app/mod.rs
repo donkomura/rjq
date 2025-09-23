@@ -9,12 +9,12 @@ pub use config::AppConfig;
 pub use error::AppError;
 pub use state::AppState;
 
-/// Common trait for content generation
+/// コンテンツ生成のための共通トレイト
 pub trait ContentGenerator {
-    /// Generate current content
+    /// 現在のコンテンツを生成する
     fn generate_current_content(&self) -> String;
 
-    /// Get total number of scrollable content lines
+    /// スクロール可能なコンテンツの行数を取得する
     fn get_total_lines(&self) -> usize;
 }
 

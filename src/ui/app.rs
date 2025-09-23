@@ -1,4 +1,5 @@
 use super::events::{get_action, update};
+use super::syntax::SyntaxHighlighter;
 use crate::app::App;
 use crossterm::event::{self, Event, KeyEvent};
 use ratatui::{
@@ -6,6 +7,7 @@ use ratatui::{
     backend::Backend,
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
+    text::Line,
     widgets::{Paragraph, Widget},
 };
 
@@ -39,6 +41,7 @@ impl Widget for &App {
             .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(area);
 
+        // プロンプト行を作成（ハイライトなし）
         let prompt_text = format!("{}{}", self.prompt(), self.input());
         let prompt_paragraph = Paragraph::new(prompt_text);
         prompt_paragraph.render(chunks[0], buf);
@@ -72,9 +75,15 @@ impl Widget for &App {
                 .take(available_height)
                 .copied()
                 .collect();
-            let scrolled_text = visible_lines.join("\n");
 
-            let json_paragraph = Paragraph::new(scrolled_text);
+            // JSONにシンタックスハイライトを適用
+            let highlighter = SyntaxHighlighter::new();
+            let highlighted_lines: Vec<Line> = visible_lines
+                .iter()
+                .map(|line| highlighter.highlight_line(line))
+                .collect();
+
+            let json_paragraph = Paragraph::new(highlighted_lines);
             json_paragraph.render(chunks[1], buf);
         }
     }

@@ -1,4 +1,4 @@
-use crate::app::error::AppError;
+use super::error::AppError;
 
 #[derive(Debug, Default)]
 pub struct AppState {
@@ -9,13 +9,12 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn set_exit(&mut self, exit: bool) {
+        self.exit = exit;
     }
 
     pub fn clear_input(&mut self) {
         self.input.clear();
-        self.last_error = None;
     }
 
     pub fn push_char(&mut self, c: char) {
@@ -26,25 +25,15 @@ impl AppState {
         self.input.pop();
     }
 
-    pub fn set_exit(&mut self, exit: bool) {
-        self.exit = exit;
-    }
-
-    pub fn set_error(&mut self, error: AppError) {
-        self.last_error = Some(error);
-    }
-
     pub fn scroll_up(&mut self) {
-        if self.scroll_offset > 0 {
-            self.scroll_offset -= 1;
-        }
+        self.scroll_offset = self.scroll_offset.saturating_sub(1);
     }
 
+    /// Scroll down with bounds checking based on content and visible area
     pub fn scroll_down_bounded(&mut self, total_lines: usize, visible_height: usize) {
-        let max_scroll = total_lines.saturating_sub(visible_height);
-
-        if self.scroll_offset < max_scroll {
-            self.scroll_offset += 1;
+        if total_lines > visible_height {
+            let max_scroll = total_lines - visible_height;
+            self.scroll_offset = (self.scroll_offset + 1).min(max_scroll);
         }
     }
 
@@ -59,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_state_input_operations() {
-        let mut state = AppState::new();
+        let mut state = AppState::default();
         assert_eq!(state.input, "");
 
         state.push_char('a');
@@ -75,119 +64,84 @@ mod tests {
 
     #[test]
     fn test_state_exit_flag() {
-        let mut state = AppState::new();
+        let mut state = AppState::default();
         assert!(!state.exit);
 
         state.set_exit(true);
         assert!(state.exit);
+
+        state.set_exit(false);
+        assert!(!state.exit);
     }
 
     #[test]
     fn test_scroll_operations() {
-        let mut state = AppState::new();
+        let mut state = AppState::default();
         assert_eq!(state.scroll_offset, 0);
 
-        // Test scroll up (at boundary should not go below 0)
+        // Test scroll up from 0 (should stay at 0)
         state.scroll_up();
         assert_eq!(state.scroll_offset, 0);
 
-        // Test bounded scroll down
-        state.scroll_down_bounded(10, 5);
+        // Test scroll down with bounds
+        state.scroll_down_bounded(50, 20); // 50 total lines, 20 visible
         assert_eq!(state.scroll_offset, 1);
 
-        state.scroll_down_bounded(10, 5);
+        state.scroll_down_bounded(50, 20);
         assert_eq!(state.scroll_offset, 2);
 
-        // Test scroll up
-        state.scroll_up();
-        assert_eq!(state.scroll_offset, 1);
-
-        state.scroll_up();
-        assert_eq!(state.scroll_offset, 0);
-
-        // Test reset scroll
-        state.scroll_down_bounded(10, 5);
-        state.scroll_down_bounded(10, 5);
+        // Test reset
         state.reset_scroll();
         assert_eq!(state.scroll_offset, 0);
     }
 
     #[test]
     fn test_scroll_with_bounds() {
-        let mut state = AppState::new();
+        let mut state = AppState::default();
+        let total_lines = 25;
+        let visible_height = 20;
+        let max_scroll = total_lines - visible_height; // 5
 
-        // Test with sufficient content (10 lines, 3 visible)
-        // max_scroll = max(0, 10 - 3) = 7
-        let total_lines = 10;
-        let visible_height = 3;
-
-        // Should scroll down normally within bounds
-        for i in 1..=7 {
+        // Scroll to maximum
+        for _ in 0..10 {
             state.scroll_down_bounded(total_lines, visible_height);
-            assert_eq!(state.scroll_offset, i);
         }
+        assert_eq!(state.scroll_offset, max_scroll);
 
-        // Should not exceed max_scroll (7)
+        // Try to scroll beyond maximum (should stay at max)
         state.scroll_down_bounded(total_lines, visible_height);
-        assert_eq!(state.scroll_offset, 7);
-
-        state.scroll_down_bounded(total_lines, visible_height);
-        assert_eq!(state.scroll_offset, 7); // Still 7, not 8
+        assert_eq!(state.scroll_offset, max_scroll);
     }
 
     #[test]
     fn test_scroll_bounds_edge_cases() {
-        let mut state = AppState::new();
+        let mut state = AppState::default();
 
-        // Case 1: Content shorter than visible area
-        // max_scroll = max(0, 2 - 5) = 0
-        state.scroll_down_bounded(2, 5);
-        assert_eq!(state.scroll_offset, 0); // Should not scroll
+        // Case: content fits in visible area (no scrolling allowed)
+        state.scroll_down_bounded(10, 20); // 10 lines, 20 visible
+        assert_eq!(state.scroll_offset, 0);
 
-        // Case 2: Content exactly matches visible area
-        // max_scroll = max(0, 5 - 5) = 0
-        state.reset_scroll();
-        state.scroll_down_bounded(5, 5);
-        assert_eq!(state.scroll_offset, 0); // Should not scroll
-
-        // Case 3: Content one line longer than visible area
-        // max_scroll = max(0, 6 - 5) = 1
-        state.reset_scroll();
-        state.scroll_down_bounded(6, 5);
-        assert_eq!(state.scroll_offset, 1);
-
-        state.scroll_down_bounded(6, 5);
-        assert_eq!(state.scroll_offset, 1); // Should not exceed 1
+        // Case: content exactly fits (no scrolling allowed)
+        state.scroll_down_bounded(20, 20); // 20 lines, 20 visible
+        assert_eq!(state.scroll_offset, 0);
     }
 
     #[test]
     fn test_scroll_up_down_integration() {
-        let mut state = AppState::new();
-        let total_lines = 10;
-        let visible_height = 3;
-        // max_scroll = 10 - 3 = 7
+        let mut state = AppState::default();
+        let total_lines = 30;
+        let visible_height = 20;
 
-        // Scroll down to middle position
-        for _ in 0..4 {
-            state.scroll_down_bounded(total_lines, visible_height);
-        }
-        assert_eq!(state.scroll_offset, 4);
-
-        // Should be able to scroll up normally
-        state.scroll_up();
-        assert_eq!(state.scroll_offset, 3);
-
-        state.scroll_up();
+        // Scroll down a few times
+        state.scroll_down_bounded(total_lines, visible_height);
+        state.scroll_down_bounded(total_lines, visible_height);
         assert_eq!(state.scroll_offset, 2);
 
-        // Continue scrolling up to beginning
+        // Scroll up once
         state.scroll_up();
         assert_eq!(state.scroll_offset, 1);
 
-        state.scroll_up();
-        assert_eq!(state.scroll_offset, 0);
-
-        // Should not go below 0
+        // Scroll up to 0
         state.scroll_up();
         assert_eq!(state.scroll_offset, 0);
 

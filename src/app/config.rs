@@ -14,10 +14,6 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn with_prompt(prompt: &'static str) -> Self {
         Self {
             prompt,
@@ -53,8 +49,8 @@ mod tests {
 
     #[test]
     fn test_custom_prompt() {
-        let config = AppConfig::with_prompt("custom > ");
-        assert_eq!(config.prompt, "custom > ");
+        let config = AppConfig::with_prompt("test > ");
+        assert_eq!(config.prompt, "test > ");
         assert_eq!(config.visible_height, 20);
     }
 
