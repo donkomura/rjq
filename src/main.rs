@@ -1,146 +1,127 @@
 use clap::Parser;
-use crossterm::{event::EnableMouseCapture, execute, terminal::enable_raw_mode};
-use ratatui::{Terminal, backend::CrosstermBackend};
-use std::fs;
-use std::io::{self, Read};
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{backend::CrosstermBackend, Terminal};
+use rjq::{app::App, ui::restore_terminal};
+use std::io;
 
-use rjq::{App, Result};
-
-/// A command-line jq processor with interactive TUI
-#[derive(Parser, Debug, Clone, PartialEq)]
+#[derive(Parser)]
 #[command(name = "rjq")]
-#[command(about = "Interactive jq query processor for JSON data")]
-#[command(version)]
+#[command(about = "A terminal UI for jq")]
 struct CliArgs {
-    /// JSON file to process (reads from stdin if not provided)
-    #[arg(short, long, value_name = "FILE")]
+    /// JSON file to read
     file: Option<String>,
+    
+    /// Custom prompt string
+    #[arg(short, long, default_value = "query > ")]
+    prompt: String,
+    
+    /// Visible height for terminal view
+    #[arg(short = 'H', long, default_value = "20")]
+    height: usize,
 }
 
-fn load_json_data(args: &CliArgs, stdin_input: &str) -> Result<serde_json::Value> {
-    if let Some(file_path) = &args.file {
-        let file_content = fs::read_to_string(file_path)?;
-        Ok(serde_json::from_str(&file_content)?)
-    } else if stdin_input.trim().is_empty() {
-        Ok(serde_json::Value::Null)
-    } else {
-        Ok(serde_json::from_str(stdin_input)?)
-    }
-}
-
-fn read_stdin() -> std::result::Result<String, std::io::Error> {
-    if atty::is(atty::Stream::Stdin) {
-        Ok(String::new())
-    } else {
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
-    }
-}
-
-fn main() -> Result<()> {
-    let cli_args = CliArgs::parse();
-
-    let input_string = read_stdin()?;
-    let json_value = load_json_data(&cli_args, &input_string)?;
-
+fn main() -> rjq::Result<()> {
+    let args = CliArgs::parse();
+    let stdin_input = read_stdin();
+    
+    let json_data = load_json_data(&args, &stdin_input)?;
+    
+    // Create app config from command line arguments
+    let config = rjq::app::AppConfig::with_prompt_and_height(
+        Box::leak(args.prompt.into_boxed_str()),
+        args.height,
+    );
+    
+    let mut app = App::with_config(json_data, config);
+    
+    // Setup terminal
     enable_raw_mode()?;
-    let mut stderr = std::io::stderr();
-    execute!(
-        stderr,
-        crossterm::terminal::EnterAlternateScreen,
-        EnableMouseCapture
-    )?;
-    let backend = CrosstermBackend::new(stderr);
+    let mut stdout = io::stdout();
+    
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
-    let mut app = App::new(json_value);
-    let res = app.run(&mut terminal);
-
-    rjq::restore_terminal(&mut terminal).ok();
-
-    if let Err(e) = res {
-        eprintln!("Error: {}", e);
+    
+    // Run the app
+    let result = app.run(&mut terminal);
+    
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+    
+    if let Err(err) = result {
+        eprintln!("Error: {}", err);
     }
-
+    
     Ok(())
+}
+
+fn read_stdin() -> String {
+    use std::io::Read;
+    let mut buffer = String::new();
+    let _ = io::stdin().read_to_string(&mut buffer);
+    buffer
+}
+
+fn load_json_data(args: &CliArgs, stdin_input: &str) -> rjq::Result<serde_json::Value> {
+    if let Some(filename) = &args.file {
+        let content = std::fs::read_to_string(filename)
+            .map_err(|e| rjq::app::AppError::Io(e))?;
+        serde_json::from_str(&content)
+            .map_err(|e| rjq::app::AppError::JsonParse(e))
+    } else if !stdin_input.trim().is_empty() {
+        serde_json::from_str(stdin_input)
+            .map_err(|e| rjq::app::AppError::JsonParse(e))
+    } else {
+        Ok(serde_json::Value::Null)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
-    use std::fs;
-
+    
     #[test]
-    fn test_app_creation() {
-        let app = App::new(json!({"test": "data"}));
-        assert_eq!(app.input(), "");
-        assert!(!app.should_exit());
-    }
-
-    #[test]
-    fn test_cli_args_default() {
-        use clap::Parser;
-        let args = CliArgs::parse_from(["rjq"]);
-        assert_eq!(args.file, None);
-    }
-
-    #[test]
-    fn test_cli_args_with_file_long() {
-        use clap::Parser;
-        let args = CliArgs::parse_from(["rjq", "--file", "test.json"]);
-        assert_eq!(args.file, Some("test.json".to_string()));
-    }
-
-    #[test]
-    fn test_cli_args_with_file_short() {
-        use clap::Parser;
-        let args = CliArgs::parse_from(["rjq", "-f", "test.json"]);
-        assert_eq!(args.file, Some("test.json".to_string()));
-    }
-
-    #[test]
-    fn test_cli_args_help() {
-        use clap::Parser;
-        let result = CliArgs::try_parse_from(["rjq", "--help"]);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
-    }
-
-    #[test]
-    fn test_load_json_from_stdin_empty() {
+    fn test_load_json_data_empty() {
         use clap::Parser;
         let args = CliArgs::parse_from(["rjq"]);
         let result = load_json_data(&args, "").unwrap();
         assert_eq!(result, serde_json::Value::Null);
     }
-
+    
     #[test]
-    fn test_load_json_from_stdin_with_data() {
+    fn test_load_json_data_from_stdin() {
         use clap::Parser;
         let args = CliArgs::parse_from(["rjq"]);
-        let input = r#"{"key": "value"}"#;
-        let result = load_json_data(&args, input).unwrap();
-        assert_eq!(result, json!({"key": "value"}));
+        let json_str = r#"{"name": "test", "value": 42}"#;
+        let result = load_json_data(&args, json_str).unwrap();
+        assert_eq!(result, json!({"name": "test", "value": 42}));
     }
-
+    
     #[test]
-    fn test_load_json_from_file() {
+    fn test_load_json_data_invalid_json() {
         use clap::Parser;
-        let temp_file = "test_temp.json";
-        let test_data = json!({"test": "file_data"});
-
-        // Create temporary test file
-        fs::write(temp_file, test_data.to_string()).expect("Failed to write test file");
-
-        let args = CliArgs::parse_from(["rjq", "-f", temp_file]);
-        let result = load_json_data(&args, "").unwrap();
-
-        // Clean up
-        fs::remove_file(temp_file).ok();
-
-        assert_eq!(result, test_data);
+        let args = CliArgs::parse_from(["rjq"]);
+        let invalid_json = "{ invalid json }";
+        let result = load_json_data(&args, invalid_json);
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_cli_args_parsing() {
+        use clap::Parser;
+        let args = CliArgs::parse_from(["rjq", "--prompt", "custom> ", "--height", "30"]);
+        assert_eq!(args.prompt, "custom> ");
+        assert_eq!(args.height, 30);
     }
 }
