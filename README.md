@@ -1,6 +1,6 @@
 # rjq
 
-A modern, interactive JSON processor built in Rust with syntax highlighting and real-time query capabilities.
+インタラクティブなJSON queryのためのCLIツール。
 
 ## Features
 
