@@ -41,16 +41,9 @@ impl Widget for &App {
             .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(area);
 
-        // シンタックスハイライトを適用したプロンプト行を作成
-        let highlighter = SyntaxHighlighter::new();
-        let mut prompt_line = Line::from(self.prompt());
-
-        if !self.input().is_empty() {
-            let highlighted_spans = highlighter.highlight(self.input());
-            prompt_line.spans.extend(highlighted_spans);
-        }
-
-        let prompt_paragraph = Paragraph::new(prompt_line);
+        // プロンプト行を作成（ハイライトなし）
+        let prompt_text = format!("{}{}", self.prompt(), self.input());
+        let prompt_paragraph = Paragraph::new(prompt_text);
         prompt_paragraph.render(chunks[0], buf);
 
         if let Some(error) = self.last_error() {
@@ -82,9 +75,15 @@ impl Widget for &App {
                 .take(available_height)
                 .copied()
                 .collect();
-            let scrolled_text = visible_lines.join("\n");
 
-            let json_paragraph = Paragraph::new(scrolled_text);
+            // JSONにシンタックスハイライトを適用
+            let highlighter = SyntaxHighlighter::new();
+            let highlighted_lines: Vec<Line> = visible_lines
+                .iter()
+                .map(|line| highlighter.highlight_line(line))
+                .collect();
+
+            let json_paragraph = Paragraph::new(highlighted_lines);
             json_paragraph.render(chunks[1], buf);
         }
     }

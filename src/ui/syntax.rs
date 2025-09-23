@@ -1,23 +1,16 @@
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
-/// jaqクエリのトークンタイプ
+/// JSONのトークンタイプ
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
-    Keyword,     // select, map, if, then, else, end, and, or, not
-    Operator,    // |, =, ==, !=, <, >, <=, >=, +, -, *, /, %
-    Function,    // length, keys, values, type, empty, error
     String,      // "文字列"
     Number,      // 123, 3.14
     Boolean,     // true, false
     Null,        // null
-    Identifier,  // .foo, .bar, 変数名
+    Key,         // オブジェクトのキー
     Bracket,     // [], {}
-    Parenthesis, // ()
-    Punctuation, // , ; :
-    Pipe,        // |
-    Comment,     // #コメント
-    Error,       // 構文エラー
+    Punctuation, // , :
     Default,     // その他
 }
 
@@ -30,12 +23,8 @@ pub struct Token {
     pub end: usize,
 }
 
-/// シンタックスハイライター
-pub struct SyntaxHighlighter {
-    keywords: Vec<&'static str>,
-    functions: Vec<&'static str>,
-    operators: Vec<&'static str>,
-}
+/// JSONシンタックスハイライター
+pub struct SyntaxHighlighter;
 
 impl Default for SyntaxHighlighter {
     fn default() -> Self {
@@ -45,142 +34,10 @@ impl Default for SyntaxHighlighter {
 
 impl SyntaxHighlighter {
     pub fn new() -> Self {
-        Self {
-            keywords: vec![
-                "if",
-                "then",
-                "else",
-                "elif",
-                "end",
-                "and",
-                "or",
-                "not",
-                "try",
-                "catch",
-                "def",
-                "as",
-                "reduce",
-                "foreach",
-                "while",
-                "until",
-                "import",
-                "include",
-                "module",
-                "empty",
-                "error",
-                "select",
-                "map",
-                "has",
-                "in",
-                "contains",
-                "inside",
-                "startswith",
-                "endswith",
-                "ltrimstr",
-                "rtrimstr",
-                "split",
-                "join",
-                "reverse",
-                "sort",
-                "sort_by",
-                "group_by",
-                "unique",
-                "unique_by",
-                "min",
-                "max",
-                "min_by",
-                "max_by",
-                "add",
-                "any",
-                "all",
-                "flatten",
-                "from_entries",
-                "to_entries",
-                "with_entries",
-                "paths",
-                "leaf_paths",
-            ],
-            functions: vec![
-                "length",
-                "keys",
-                "keys_unsorted",
-                "values",
-                "type",
-                "tonumber",
-                "tostring",
-                "todate",
-                "todateiso8601",
-                "fromdateiso8601",
-                "now",
-                "strftime",
-                "strptime",
-                "mktime",
-                "gmtime",
-                "floor",
-                "ceil",
-                "round",
-                "sqrt",
-                "log",
-                "log10",
-                "log2",
-                "exp",
-                "exp10",
-                "exp2",
-                "sin",
-                "cos",
-                "tan",
-                "asin",
-                "acos",
-                "atan",
-                "atan2",
-                "sinh",
-                "cosh",
-                "tanh",
-                "asinh",
-                "acosh",
-                "atanh",
-                "abs",
-                "fabs",
-                "ascii_downcase",
-                "ascii_upcase",
-                "recurse",
-                "recurse_down",
-                "walk",
-                "transpose",
-                "combinations",
-                "range",
-                "repeat",
-                "until",
-                "while",
-                "limit",
-                "first",
-                "last",
-                "nth",
-                "indices",
-                "index",
-                "rindex",
-                "debug",
-                "input",
-                "inputs",
-                "format",
-                "test",
-                "match",
-                "capture",
-                "splits",
-                "sub",
-                "gsub",
-                "ascii_downcase",
-                "ascii_upcase",
-            ],
-            operators: vec![
-                "==", "!=", "<=", ">=", "<", ">", "=", "+=", "-=", "*=", "/=", "%=", "//=", "+",
-                "-", "*", "/", "%", "//", "?", ":", ";", ",", ".", "..", "?//", "//", "and", "or",
-                "not", "|", "[]", "{}", "()",
-            ],
-        }
+        Self
     }
 
-    /// jaqクエリをトークンに分解
+    /// JSONをトークンに分解
     pub fn tokenize(&self, input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
         let mut chars = input.char_indices().peekable();
@@ -209,8 +66,28 @@ impl SyntaxHighlighter {
                         }
                     }
 
+                    // 文字列の後にコロンがあるかチェックしてキーかどうか判定
+                    let mut temp_chars = chars.clone();
+                    let mut is_key = false;
+
+                    // 空白をスキップしてコロンがあるかチェック
+                    while let Some(&(_, next_ch)) = temp_chars.peek() {
+                        if next_ch.is_whitespace() {
+                            temp_chars.next();
+                        } else if next_ch == ':' {
+                            is_key = true;
+                            break;
+                        } else {
+                            break;
+                        }
+                    }
+
                     tokens.push(Token {
-                        token_type: TokenType::String,
+                        token_type: if is_key {
+                            TokenType::Key
+                        } else {
+                            TokenType::String
+                        },
                         text,
                         start,
                         end,
@@ -218,7 +95,7 @@ impl SyntaxHighlighter {
                 }
 
                 // 数値
-                '0'..='9' => {
+                '0'..='9' | '-' => {
                     let mut end = start;
                     let mut text = String::new();
                     text.push(ch);
@@ -241,58 +118,26 @@ impl SyntaxHighlighter {
                         }
                     }
 
-                    tokens.push(Token {
-                        token_type: TokenType::Number,
-                        text,
-                        start,
-                        end,
-                    });
-                }
-
-                // コメント
-                '#' => {
-                    let mut end = start;
-                    let mut text = String::new();
-                    text.push(ch);
-                    end += ch.len_utf8();
-
-                    // 行末まで読む
-                    for (pos, next_ch) in chars.by_ref() {
-                        if next_ch == '\n' || next_ch == '\r' {
-                            break;
-                        }
-                        text.push(next_ch);
-                        end = pos + next_ch.len_utf8();
+                    // マイナス単体の場合は数値ではない
+                    if text == "-" {
+                        tokens.push(Token {
+                            token_type: TokenType::Default,
+                            text,
+                            start,
+                            end,
+                        });
+                    } else {
+                        tokens.push(Token {
+                            token_type: TokenType::Number,
+                            text,
+                            start,
+                            end,
+                        });
                     }
-
-                    tokens.push(Token {
-                        token_type: TokenType::Comment,
-                        text,
-                        start,
-                        end,
-                    });
-                }
-
-                // パイプ
-                '|' => {
-                    tokens.push(Token {
-                        token_type: TokenType::Pipe,
-                        text: "|".to_string(),
-                        start,
-                        end: start + 1,
-                    });
                 }
 
                 // ブラケット
-                '[' | ']' => {
-                    tokens.push(Token {
-                        token_type: TokenType::Bracket,
-                        text: ch.to_string(),
-                        start,
-                        end: start + ch.len_utf8(),
-                    });
-                }
-                '{' | '}' => {
+                '[' | ']' | '{' | '}' => {
                     tokens.push(Token {
                         token_type: TokenType::Bracket,
                         text: ch.to_string(),
@@ -301,31 +146,26 @@ impl SyntaxHighlighter {
                     });
                 }
 
-                // 括弧
-                '(' | ')' => {
+                // 区切り文字
+                ',' | ':' => {
                     tokens.push(Token {
-                        token_type: TokenType::Parenthesis,
+                        token_type: TokenType::Punctuation,
                         text: ch.to_string(),
                         start,
                         end: start + ch.len_utf8(),
                     });
                 }
 
-                // オペレータと識別子
+                // その他（true, false, null など）
                 _ => {
                     let mut end = start;
                     let mut text = String::new();
                     text.push(ch);
                     end += ch.len_utf8();
 
-                    // 連続する英数字やアンダースコア、ドットを読む
+                    // 連続する英字を読む
                     while let Some(&(pos, next_ch)) = chars.peek() {
-                        if next_ch.is_alphanumeric()
-                            || next_ch == '_'
-                            || next_ch == '.'
-                            || (text.starts_with('.') && next_ch.is_alphabetic())
-                            || (self.is_operator_char(next_ch) && self.is_operator_char(ch))
-                        {
+                        if next_ch.is_alphabetic() {
                             text.push(next_ch);
                             end = pos + next_ch.len_utf8();
                             chars.next();
@@ -348,25 +188,11 @@ impl SyntaxHighlighter {
         tokens
     }
 
-    /// 文字がオペレータの一部かどうか判定
-    fn is_operator_char(&self, ch: char) -> bool {
-        matches!(
-            ch,
-            '=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' | '%' | '?' | ':' | ';' | ',' | '.'
-        )
-    }
-
     /// トークンの種類を分類
     fn classify_token(&self, text: &str) -> TokenType {
         match text {
             "true" | "false" => TokenType::Boolean,
             "null" => TokenType::Null,
-            "," | ";" | ":" => TokenType::Punctuation,
-            _ if self.keywords.contains(&text) => TokenType::Keyword,
-            _ if self.functions.contains(&text) => TokenType::Function,
-            _ if self.operators.contains(&text) => TokenType::Operator,
-            _ if text.starts_with('.') => TokenType::Identifier,
-            _ if text.chars().all(|c| c.is_alphanumeric() || c == '_') => TokenType::Identifier,
             _ => TokenType::Default,
         }
     }
@@ -374,20 +200,13 @@ impl SyntaxHighlighter {
     /// トークンタイプに応じたスタイルを取得
     pub fn get_style(&self, token_type: &TokenType) -> Style {
         match token_type {
-            TokenType::Keyword => Style::default().fg(Color::Blue),
-            TokenType::Operator => Style::default().fg(Color::Red),
-            TokenType::Function => Style::default().fg(Color::Green),
-            TokenType::String => Style::default().fg(Color::Yellow),
+            TokenType::String => Style::default().fg(Color::Green),
             TokenType::Number => Style::default().fg(Color::Cyan),
-            TokenType::Boolean => Style::default().fg(Color::Magenta),
+            TokenType::Boolean => Style::default().fg(Color::Yellow),
             TokenType::Null => Style::default().fg(Color::Gray),
-            TokenType::Identifier => Style::default().fg(Color::White),
-            TokenType::Bracket => Style::default().fg(Color::LightBlue),
-            TokenType::Parenthesis => Style::default().fg(Color::LightBlue),
+            TokenType::Key => Style::default().fg(Color::Blue),
+            TokenType::Bracket => Style::default().fg(Color::White),
             TokenType::Punctuation => Style::default().fg(Color::Gray),
-            TokenType::Pipe => Style::default().fg(Color::LightRed),
-            TokenType::Comment => Style::default().fg(Color::DarkGray),
-            TokenType::Error => Style::default().fg(Color::Red),
             TokenType::Default => Style::default(),
         }
     }
@@ -434,116 +253,174 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tokenize_simple_query() {
+    fn test_tokenize_simple_json() {
         let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(".name");
+        let tokens = highlighter.tokenize(r#"{"name": "John"}");
 
-        assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0].token_type, TokenType::Identifier);
-        assert_eq!(tokens[0].text, ".name");
-    }
-
-    #[test]
-    fn test_tokenize_complex_query() {
-        let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(".users[] | select(.age > 25)");
-
-        // トークンの存在確認
         assert!(!tokens.is_empty());
 
-        // パイプトークンの確認
-        let pipe_tokens: Vec<_> = tokens
+        // 左ブラケット、キー、コロン、文字列値、右ブラケットが含まれることを確認
+        let brackets: Vec<_> = tokens
             .iter()
-            .filter(|t| t.token_type == TokenType::Pipe)
+            .filter(|t| t.token_type == TokenType::Bracket)
             .collect();
-        assert_eq!(pipe_tokens.len(), 1);
-    }
+        assert_eq!(brackets.len(), 2); // { }
 
-    #[test]
-    fn test_tokenize_string() {
-        let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(r#"select(.name == "John")"#);
+        let keys: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.token_type == TokenType::Key)
+            .collect();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].text, r#""name"");
 
-        let string_tokens: Vec<_> = tokens
+        let strings: Vec<_> = tokens
             .iter()
             .filter(|t| t.token_type == TokenType::String)
             .collect();
-        assert_eq!(string_tokens.len(), 1);
-        assert_eq!(string_tokens[0].text, r#""John""#);
+        assert_eq!(strings.len(), 1);
+        assert_eq!(strings[0].text, r#""John"");
     }
 
     #[test]
-    fn test_tokenize_number() {
+    fn test_tokenize_json_array() {
         let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize("select(.age > 25)");
+        let tokens = highlighter.tokenize(r#"[1, 2, 3]");
 
-        let number_tokens: Vec<_> = tokens
+        let brackets: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.token_type == TokenType::Bracket)
+            .collect();
+        assert_eq!(brackets.len(), 2); // [ ]
+
+        let numbers: Vec<_> = tokens
             .iter()
             .filter(|t| t.token_type == TokenType::Number)
             .collect();
-        assert_eq!(number_tokens.len(), 1);
-        assert_eq!(number_tokens[0].text, "25");
-    }
+        assert_eq!(numbers.len(), 3);
 
-    #[test]
-    fn test_tokenize_keywords() {
-        let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize("if .age > 18 then .name else empty end");
-
-        let keyword_tokens: Vec<_> = tokens
+        let punctuation: Vec<_> = tokens
             .iter()
-            .filter(|t| t.token_type == TokenType::Keyword)
+            .filter(|t| t.token_type == TokenType::Punctuation)
             .collect();
-        assert!(keyword_tokens.len() >= 4); // if, then, else, empty, end
+        assert_eq!(punctuation.len(), 2); // , ,
     }
 
     #[test]
-    fn test_tokenize_functions() {
+    fn test_tokenize_json_primitives() {
         let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize("length | keys | type");
 
-        let function_tokens: Vec<_> = tokens
+        // Boolean値のテスト
+        let tokens = highlighter.tokenize("true");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, TokenType::Boolean);
+
+        let tokens = highlighter.tokenize("false");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, TokenType::Boolean);
+
+        // null値のテスト
+        let tokens = highlighter.tokenize("null");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, TokenType::Null);
+    }
+
+    #[test]
+    fn test_tokenize_json_numbers() {
+        let highlighter = SyntaxHighlighter::new();
+
+        // 整数
+        let tokens = highlighter.tokenize("123");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].text, "123");
+
+        // 小数
+        let tokens = highlighter.tokenize("123.45");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].text, "123.45");
+
+        // 負数
+        let tokens = highlighter.tokenize("-123");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].text, "-123");
+    }
+
+    #[test]
+    fn test_distinguish_key_and_string() {
+        let highlighter = SyntaxHighlighter::new();
+        let tokens = highlighter.tokenize(r#"{"key": "value"}");
+
+        let keys: Vec<_> = tokens
             .iter()
-            .filter(|t| t.token_type == TokenType::Function)
+            .filter(|t| t.token_type == TokenType::Key)
             .collect();
-        assert_eq!(function_tokens.len(), 3);
-    }
-
-    #[test]
-    fn test_tokenize_comments() {
-        let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(".name # get user name");
-
-        let comment_tokens: Vec<_> = tokens
+        let strings: Vec<_> = tokens
             .iter()
-            .filter(|t| t.token_type == TokenType::Comment)
+            .filter(|t| t.token_type == TokenType::String)
             .collect();
-        assert_eq!(comment_tokens.len(), 1);
-        assert!(comment_tokens[0].text.starts_with('#'));
+
+        assert_eq!(keys.len(), 1);
+        assert_eq!(strings.len(), 1);
+        assert_eq!(keys[0].text, r#""key"");
+        assert_eq!(strings[0].text, r#""value"");
     }
 
     #[test]
-    fn test_highlight() {
+    fn test_complex_json() {
         let highlighter = SyntaxHighlighter::new();
-        let spans = highlighter.highlight(".name | length");
+        let json = r#"{"users": [{"name": "John", "age": 30, "active": true}, {"name": "Jane", "age": null}]}");
+        let tokens = highlighter.tokenize(json);
+
+        // トークンが生成されることを確認
+        assert!(!tokens.is_empty());
+
+        // 各種トークンタイプが含まれることを確認
+        let has_key = tokens.iter().any(|t| t.token_type == TokenType::Key);
+        let has_string = tokens.iter().any(|t| t.token_type == TokenType::String);
+        let has_number = tokens.iter().any(|t| t.token_type == TokenType::Number);
+        let has_boolean = tokens.iter().any(|t| t.token_type == TokenType::Boolean);
+        let has_null = tokens.iter().any(|t| t.token_type == TokenType::Null);
+        let has_bracket = tokens.iter().any(|t| t.token_type == TokenType::Bracket);
+        let has_punctuation = tokens
+            .iter()
+            .any(|t| t.token_type == TokenType::Punctuation);
+
+        assert!(has_key);
+        assert!(has_string);
+        assert!(has_number);
+        assert!(has_boolean);
+        assert!(has_null);
+        assert!(has_bracket);
+        assert!(has_punctuation);
+    }
+
+    #[test]
+    fn test_highlight_json() {
+        let highlighter = SyntaxHighlighter::new();
+        let spans = highlighter.highlight(r#"{"name": "John", "age": 30}");
 
         // スパンが作成されることを確認
         assert!(!spans.is_empty());
     }
 
     #[test]
+    fn test_highlight_line() {
+        let highlighter = SyntaxHighlighter::new();
+        let line = highlighter.highlight_line(r#"{"test": true}");
+
+        // ラインが作成されることを確認
+        assert!(!line.spans.is_empty());
+    }
+
+    #[test]
     fn test_classify_token() {
         let highlighter = SyntaxHighlighter::new();
 
-        assert_eq!(highlighter.classify_token("select"), TokenType::Keyword);
-        assert_eq!(highlighter.classify_token("length"), TokenType::Function);
         assert_eq!(highlighter.classify_token("true"), TokenType::Boolean);
+        assert_eq!(highlighter.classify_token("false"), TokenType::Boolean);
         assert_eq!(highlighter.classify_token("null"), TokenType::Null);
-        assert_eq!(highlighter.classify_token(".name"), TokenType::Identifier);
-        assert_eq!(highlighter.classify_token(","), TokenType::Punctuation);
-
-        // オペレータとして分類されるべきテスト
-        assert_eq!(highlighter.classify_token("=="), TokenType::Operator);
-        assert_eq!(highlighter.classify_token("+"), TokenType::Operator);
+        assert_eq!(highlighter.classify_token("other"), TokenType::Default);
     }
 }
