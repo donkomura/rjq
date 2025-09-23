@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn test_tokenize_simple_json() {
         let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(r#"{"name": "John"}");
+        let tokens = highlighter.tokenize(r#"{"name": "John"}"#);
 
         assert!(!tokens.is_empty());
 
@@ -271,20 +271,20 @@ mod tests {
             .filter(|t| t.token_type == TokenType::Key)
             .collect();
         assert_eq!(keys.len(), 1);
-        assert_eq!(keys[0].text, r#""name"");
+        assert_eq!(keys[0].text, r#""name""#);
 
         let strings: Vec<_> = tokens
             .iter()
             .filter(|t| t.token_type == TokenType::String)
             .collect();
         assert_eq!(strings.len(), 1);
-        assert_eq!(strings[0].text, r#""John"");
+        assert_eq!(strings[0].text, r#""John""#);
     }
 
     #[test]
     fn test_tokenize_json_array() {
         let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(r#"[1, 2, 3]");
+        let tokens = highlighter.tokenize(r#"[1, 2, 3]"#);
 
         let brackets: Vec<_> = tokens
             .iter()
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn test_distinguish_key_and_string() {
         let highlighter = SyntaxHighlighter::new();
-        let tokens = highlighter.tokenize(r#"{"key": "value"}");
+        let tokens = highlighter.tokenize(r#"{"key": "value"}"#);
 
         let keys: Vec<_> = tokens
             .iter()
@@ -363,14 +363,14 @@ mod tests {
 
         assert_eq!(keys.len(), 1);
         assert_eq!(strings.len(), 1);
-        assert_eq!(keys[0].text, r#""key"");
-        assert_eq!(strings[0].text, r#""value"");
+        assert_eq!(keys[0].text, r#""key""#);
+        assert_eq!(strings[0].text, r#""value""#);
     }
 
     #[test]
     fn test_complex_json() {
         let highlighter = SyntaxHighlighter::new();
-        let json = r#"{"users": [{"name": "John", "age": 30, "active": true}, {"name": "Jane", "age": null}]}");
+        let json = r#"{"users": [{"name": "John", "age": 30, "active": true}, {"name": "Jane", "age": null}]}"#;
         let tokens = highlighter.tokenize(json);
 
         // トークンが生成されることを確認
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn test_highlight_json() {
         let highlighter = SyntaxHighlighter::new();
-        let spans = highlighter.highlight(r#"{"name": "John", "age": 30}");
+        let spans = highlighter.highlight(r#"{"name": "John", "age": 30}"#);
 
         // スパンが作成されることを確認
         assert!(!spans.is_empty());
@@ -408,7 +408,7 @@ mod tests {
     #[test]
     fn test_highlight_line() {
         let highlighter = SyntaxHighlighter::new();
-        let line = highlighter.highlight_line(r#"{"test": true}");
+        let line = highlighter.highlight_line(r#"{"test": true}"#);
 
         // ラインが作成されることを確認
         assert!(!line.spans.is_empty());
