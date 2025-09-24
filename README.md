@@ -7,13 +7,6 @@ An interactive CLI tool for JSON querying.
 - **Interactive TUI**: Terminal-based user interface with real-time JSON processing
 - **jaq Integration**: Uses the powerful jaq library for JSON querying with jq-compatible syntax
 - **Syntax Highlighting**: Beautiful color-coded JSON output for better readability
-  - Keys: Blue
-  - Strings: Green
-  - Numbers: Cyan
-  - Booleans: Yellow
-  - Null values: Gray
-  - Brackets: White
-  - Punctuation: Gray
 - **Scrolling Support**: Navigate through large JSON files with Up/Down arrow keys
 - **File and Stdin Input**: Process JSON from files or pipe data directly
 - **Error Handling**: Clear error messages for invalid queries or malformed JSON
@@ -35,9 +28,6 @@ The binary will be available at `target/release/rjq`.
 ### Basic Usage
 
 ```bash
-# Process JSON from a file
-rjq data.json
-
 # Process JSON from stdin
 echo '{"name": "John", "age": 30}' | rjq
 
