@@ -111,5 +111,12 @@ mod tests {
             KeyModifiers::NONE,
         ));
         assert_eq!(action, Action::Tab);
+
+        // Test space character input
+        let action = get_action(crossterm::event::KeyEvent::new(
+            KeyCode::Char(' '),
+            KeyModifiers::NONE,
+        ));
+        assert_eq!(action, Action::Input(' '));
     }
 }
