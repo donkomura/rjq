@@ -122,4 +122,25 @@ impl App {
     pub fn execute_current_query(&self) -> crate::Result<crate::query::QueryResult> {
         self.data.execute_query(&self.state.input)
     }
+
+    // 候補機能
+    pub fn get_best_suggestion(&self) -> Option<String> {
+        if self.state.input.len() < 2 {
+            return None;
+        }
+
+        let suggestions = self
+            .state
+            .query_history
+            .get_suggestions(&self.state.input, 1);
+        suggestions.first().map(|s| s.text.clone())
+    }
+
+    pub fn apply_suggestion(&mut self, suggestion: String) {
+        self.state.input = suggestion;
+    }
+
+    pub fn record_query(&mut self, query: String) {
+        self.state.query_history.record_query(query);
+    }
 }

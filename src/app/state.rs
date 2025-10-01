@@ -1,11 +1,13 @@
 use super::error::AppError;
+use crate::history::QueryHistory;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AppState {
     pub input: String,
     pub exit: bool,
     pub last_error: Option<AppError>,
     pub scroll_offset: usize,
+    pub query_history: QueryHistory,
 }
 
 impl AppState {
@@ -39,6 +41,18 @@ impl AppState {
 
     pub fn reset_scroll(&mut self) {
         self.scroll_offset = 0;
+    }
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            input: String::new(),
+            exit: false,
+            last_error: None,
+            scroll_offset: 0,
+            query_history: QueryHistory::default(),
+        }
     }
 }
 

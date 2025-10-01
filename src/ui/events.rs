@@ -27,6 +27,7 @@ pub fn get_action(key_event: KeyEvent) -> Action {
         }
         KeyCode::Backspace => Action::Backspace,
         KeyCode::Enter => Action::Clear,
+        KeyCode::Tab => Action::None, // TABキーも Action::None にマップ
         _ => Action::None,
     }
 }
@@ -45,12 +46,22 @@ pub fn update(app: &mut App, action: Action) {
             app.reset_scroll();
         }
         Action::Clear => {
+            let current_input = app.input().to_string();
+            if !current_input.trim().is_empty() {
+                // クエリ実行時に履歴に記録
+                app.record_query(current_input);
+            }
             app.clear_input();
             app.reset_scroll();
         }
         Action::ScrollUp => app.scroll_up(),
         Action::ScrollDown => app.scroll_down(),
-        Action::None => {}
+        Action::None => {
+            // TABキーが押された場合の処理
+            if let Some(suggestion) = app.get_best_suggestion() {
+                app.apply_suggestion(suggestion);
+            }
+        }
     }
 }
 
@@ -90,5 +101,11 @@ mod tests {
             KeyModifiers::NONE,
         ));
         assert_eq!(action, Action::ScrollDown);
+
+        let action = get_action(crossterm::event::KeyEvent::new(
+            KeyCode::Tab,
+            KeyModifiers::NONE,
+        ));
+        assert_eq!(action, Action::None);
     }
 }

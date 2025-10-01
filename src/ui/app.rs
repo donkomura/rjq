@@ -7,7 +7,8 @@ use ratatui::{
     backend::Backend,
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
-    text::Line,
+    style::{Color, Style},
+    text::{Line, Span},
     widgets::{Paragraph, Widget},
 };
 
@@ -32,6 +33,37 @@ impl App {
         update(self, action);
         Ok(())
     }
+
+    fn render_input_with_suggestion(&self, area: Rect, buf: &mut Buffer) {
+        let prompt = self.prompt();
+        let input = self.input();
+
+        // 最適候補を取得
+        let suggestion = self.get_best_suggestion();
+
+        if let Some(candidate) = suggestion {
+            if let Some(completed_part) = candidate.strip_prefix(input) {
+                // 入力済み部分 + 候補部分の表示
+                // 通常色で入力部分
+                let input_text = format!("{}{}", prompt, input);
+                let input_span = Span::styled(input_text, Style::default());
+
+                // グレー色で候補部分
+                let suggestion_span =
+                    Span::styled(completed_part, Style::default().fg(Color::DarkGray));
+
+                let line = Line::from(vec![input_span, suggestion_span]);
+                let paragraph = Paragraph::new(line);
+                paragraph.render(area, buf);
+                return;
+            }
+        }
+
+        // 候補がない場合は通常表示
+        let prompt_text = format!("{}{}", prompt, input);
+        let paragraph = Paragraph::new(prompt_text);
+        paragraph.render(area, buf);
+    }
 }
 
 impl Widget for &App {
@@ -41,10 +73,8 @@ impl Widget for &App {
             .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(area);
 
-        // プロンプト行を作成（ハイライトなし）
-        let prompt_text = format!("{}{}", self.prompt(), self.input());
-        let prompt_paragraph = Paragraph::new(prompt_text);
-        prompt_paragraph.render(chunks[0], buf);
+        // プロンプト行を候補付きで描画
+        self.render_input_with_suggestion(chunks[0], buf);
 
         if let Some(error) = self.last_error() {
             let error_text = format!("Error: {}", error);

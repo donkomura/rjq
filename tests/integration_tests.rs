@@ -71,3 +71,56 @@ fn test_app_builder_pattern() {
     assert_eq!(app.input(), "");
     assert!(!app.should_exit());
 }
+
+#[test]
+fn test_query_history_suggestion() {
+    // 履歴ベースSuggest機能のテスト
+    let json_data = json!({"users": [{"name": "Alice"}, {"name": "Bob"}]});
+    let mut app = App::new(json_data);
+
+    // 初期状態では候補がない
+    assert!(app.get_best_suggestion().is_none());
+
+    // クエリを記録
+    app.record_query(".users[0].name".to_string());
+    app.record_query(".users[1].name".to_string());
+
+    // 入力文字が短い場合は候補なし
+    app.push_char('.');
+    assert!(app.get_best_suggestion().is_none());
+
+    // 十分な入力で候補が表示される
+    app.push_char('u');
+    let suggestion = app.get_best_suggestion();
+    assert!(suggestion.is_some());
+    assert!(suggestion.unwrap().starts_with(".u"));
+
+    // 候補の適用
+    let best_suggestion = app.get_best_suggestion().unwrap();
+    app.apply_suggestion(best_suggestion.clone());
+    assert_eq!(app.input(), best_suggestion);
+}
+
+#[test]
+fn test_query_history_ranking() {
+    // 履歴のランキング機能のテスト
+    let json_data = json!({"test": "data"});
+    let mut app = App::new(json_data);
+
+    // 異なる頻度でクエリを記録
+    app.record_query(".test".to_string());
+    app.record_query(".test".to_string()); // 2回実行
+    app.record_query(".testing".to_string()); // 1回実行
+
+    // ".te"で前方一致検索
+    app.clear_input();
+    app.push_char('.');
+    app.push_char('t');
+    app.push_char('e');
+
+    let suggestion = app.get_best_suggestion();
+    assert!(suggestion.is_some());
+    // より頻繁に使用されるクエリが優先される
+    let suggested = suggestion.unwrap();
+    assert!(suggested == ".test" || suggested == ".testing");
+}
