@@ -2,6 +2,7 @@ use super::error::AppError;
 use crate::history::QueryHistory;
 
 #[derive(Debug)]
+#[derive(Default)]
 pub struct AppState {
     pub input: String,
     pub exit: bool,
@@ -44,17 +45,6 @@ impl AppState {
     }
 }
 
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            input: String::new(),
-            exit: false,
-            last_error: None,
-            scroll_offset: 0,
-            query_history: QueryHistory::default(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
