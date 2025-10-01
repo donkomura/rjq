@@ -1,8 +1,7 @@
 use super::error::AppError;
 use crate::history::QueryHistory;
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct AppState {
     pub input: String,
     pub exit: bool,
@@ -44,7 +43,6 @@ impl AppState {
         self.scroll_offset = 0;
     }
 }
-
 
 #[cfg(test)]
 mod tests {

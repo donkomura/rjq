@@ -41,22 +41,19 @@ impl App {
         // 最適候補を取得
         let suggestion = self.get_best_suggestion();
 
-        if let Some(candidate) = suggestion {
-            if let Some(completed_part) = candidate.strip_prefix(input) {
-                // 入力済み部分 + 候補部分の表示
-                // 通常色で入力部分
-                let input_text = format!("{}{}", prompt, input);
-                let input_span = Span::styled(input_text, Style::default());
+        if let Some(candidate) = suggestion.as_ref().and_then(|c| c.strip_prefix(input)) {
+            // 入力済み部分 + 候補部分の表示
+            // 通常色で入力部分
+            let input_text = format!("{}{}", prompt, input);
+            let input_span = Span::styled(input_text, Style::default());
 
-                // グレー色で候補部分
-                let suggestion_span =
-                    Span::styled(completed_part, Style::default().fg(Color::DarkGray));
+            // グレー色で候補部分
+            let suggestion_span = Span::styled(candidate, Style::default().fg(Color::DarkGray));
 
-                let line = Line::from(vec![input_span, suggestion_span]);
-                let paragraph = Paragraph::new(line);
-                paragraph.render(area, buf);
-                return;
-            }
+            let line = Line::from(vec![input_span, suggestion_span]);
+            let paragraph = Paragraph::new(line);
+            paragraph.render(area, buf);
+            return;
         }
 
         // 候補がない場合は通常表示
