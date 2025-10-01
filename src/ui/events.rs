@@ -9,6 +9,7 @@ pub enum Action {
     Clear,
     ScrollUp,
     ScrollDown,
+    Tab,
     None,
 }
 
@@ -27,7 +28,7 @@ pub fn get_action(key_event: KeyEvent) -> Action {
         }
         KeyCode::Backspace => Action::Backspace,
         KeyCode::Enter => Action::Clear,
-        KeyCode::Tab => Action::None, // TABキーも Action::None にマップ
+        KeyCode::Tab => Action::Tab,
         _ => Action::None,
     }
 }
@@ -56,11 +57,14 @@ pub fn update(app: &mut App, action: Action) {
         }
         Action::ScrollUp => app.scroll_up(),
         Action::ScrollDown => app.scroll_down(),
-        Action::None => {
+        Action::Tab => {
             // TABキーが押された場合の処理
             if let Some(suggestion) = app.get_best_suggestion() {
                 app.apply_suggestion(suggestion);
             }
+        }
+        Action::None => {
+            // 未定義キーの場合は何もしない
         }
     }
 }
@@ -106,6 +110,6 @@ mod tests {
             KeyCode::Tab,
             KeyModifiers::NONE,
         ));
-        assert_eq!(action, Action::None);
+        assert_eq!(action, Action::Tab);
     }
 }
