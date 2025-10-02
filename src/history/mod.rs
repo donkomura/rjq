@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-const SECONDS_PER_DAY: f64 = 86400.0;
-
 #[derive(Debug, Clone)]
 pub struct QueryEntry {
     pub query: String,
@@ -21,7 +19,6 @@ pub struct SuggestionItem {
 pub struct QueryHistory {
     entries: HashMap<String, QueryEntry>,
     max_entries: usize,
-    recent_weight: f64,
 }
 
 impl QueryHistory {
@@ -29,7 +26,6 @@ impl QueryHistory {
         Self {
             entries: HashMap::new(),
             max_entries,
-            recent_weight: 0.5,
         }
     }
 
@@ -87,20 +83,7 @@ impl QueryHistory {
     }
 
     fn calculate_score(&self, entry: &QueryEntry) -> f64 {
-        let frequency_score = entry.count as f64;
-        let time_decay = self.calculate_time_decay(entry.last_used);
-
-        frequency_score * (1.0 - self.recent_weight) + time_decay * self.recent_weight
-    }
-
-    fn calculate_time_decay(&self, last_used: SystemTime) -> f64 {
-        let elapsed = SystemTime::now()
-            .duration_since(last_used)
-            .unwrap_or_default()
-            .as_secs() as f64;
-
-        // 24時間で半減する指数減衰
-        (-elapsed / SECONDS_PER_DAY).exp()
+        entry.count as f64
     }
 
     fn cleanup_old_entries(&mut self) {
