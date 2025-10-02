@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::time::SystemTime;
 
+const SECONDS_PER_DAY: f64 = 86400.0;
+
 #[derive(Debug, Clone)]
 pub struct QueryEntry {
     pub query: String,
@@ -98,7 +100,7 @@ impl QueryHistory {
             .as_secs() as f64;
 
         // 24時間で半減する指数減衰
-        (-elapsed / 86400.0).exp()
+        (-elapsed / SECONDS_PER_DAY).exp()
     }
 
     fn cleanup_old_entries(&mut self) {

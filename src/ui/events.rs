@@ -47,10 +47,9 @@ pub fn update(app: &mut App, action: Action) {
             app.reset_scroll();
         }
         Action::Clear => {
-            let current_input = app.input().to_string();
-            if !current_input.trim().is_empty() {
+            if !app.input().trim().is_empty() {
                 // Record in history when executing a query
-                app.record_query(current_input);
+                app.record_query(app.input().to_string());
             }
             app.clear_input();
             app.reset_scroll();
