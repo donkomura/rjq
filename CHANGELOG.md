@@ -7,22 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2025-09-23
-
-### Added
-- Optimized release workflow with cross-platform binary distribution
-- Automated release creation using create-gh-release-action
-- Cross-platform support for 7 platforms:
-  - macOS: x86_64 (Intel) and aarch64 (Apple Silicon)
-  - Linux: x86_64 and aarch64 (GNU and musl variants)
-  - Windows: x86_64 (MSVC)
-- Automated changelog-based release notes generation
-- Comprehensive CI/CD pipeline with modern GitHub Actions
-
-### Changed
-- Simplified release workflow using taiki-e/upload-rust-binary-action
-- Improved binary distribution with proper OS matrix configuration
-
 ## [0.1.0] - 2025-09-23
 
 ### Added
@@ -54,6 +38,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom JSON tokenizer for syntax highlighting
 - Automated release workflow with taiki-e actions
 
-[Unreleased]: https://github.com/donkomura/rjq/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/donkomura/rjq/compare/v0.1.0...v0.2.0
+[Unreleased]: https://github.com/donkomura/rjq/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/donkomura/rjq/releases/tag/v0.1.0
