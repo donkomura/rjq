@@ -49,7 +49,7 @@ pub fn update(app: &mut App, action: Action) {
         Action::Clear => {
             let current_input = app.input().to_string();
             if !current_input.trim().is_empty() {
-                // クエリ実行時に履歴に記録
+                // Record in history when executing a query
                 app.record_query(current_input);
             }
             app.clear_input();
@@ -58,13 +58,13 @@ pub fn update(app: &mut App, action: Action) {
         Action::ScrollUp => app.scroll_up(),
         Action::ScrollDown => app.scroll_down(),
         Action::Tab => {
-            // TABキーが押された場合の処理
+            // Handle when the TAB key is pressed
             if let Some(suggestion) = app.get_best_suggestion() {
                 app.apply_suggestion(suggestion);
             }
         }
         Action::None => {
-            // 未定義キーの場合は何もしない
+            // Do nothing for undefined keys
         }
     }
 }

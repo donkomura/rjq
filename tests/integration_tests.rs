@@ -74,7 +74,7 @@ fn test_app_builder_pattern() {
 
 #[test]
 fn test_query_history_suggestion() {
-    // 履歴ベースSuggest機能のテスト
+    // Test for history-based Suggest feature
     let json_data = json!({"users": [{"name": "Alice"}, {"name": "Bob"}]});
     let mut app = App::new(json_data);
 
@@ -103,7 +103,7 @@ fn test_query_history_suggestion() {
 
 #[test]
 fn test_query_history_ranking() {
-    // 履歴のランキング機能のテスト
+    // Test for the ranking feature of the history
     let json_data = json!({"test": "data"});
     let mut app = App::new(json_data);
 
