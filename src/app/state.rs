@@ -1,4 +1,5 @@
 use super::error::AppError;
+use crate::history::QueryHistory;
 
 #[derive(Debug, Default)]
 pub struct AppState {
@@ -6,6 +7,7 @@ pub struct AppState {
     pub exit: bool,
     pub last_error: Option<AppError>,
     pub scroll_offset: usize,
+    pub query_history: QueryHistory,
 }
 
 impl AppState {

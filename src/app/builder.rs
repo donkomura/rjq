@@ -203,6 +203,10 @@ impl<Q: QueryExecutor, E: EventHandler> EnhancedApp<Q, E> {
             }
             crate::ui::Action::ScrollUp => self.scroll_up(),
             crate::ui::Action::ScrollDown => self.scroll_down(),
+            crate::ui::Action::Tab => {
+                // TAB completion logic would need to be implemented here
+                // For now, this is a no-op as the builder pattern doesn't support suggestions
+            }
             crate::ui::Action::None => {}
         }
     }

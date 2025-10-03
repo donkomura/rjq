@@ -9,6 +9,7 @@ pub enum Action {
     Clear,
     ScrollUp,
     ScrollDown,
+    Tab,
     None,
 }
 
@@ -27,6 +28,7 @@ pub fn get_action(key_event: KeyEvent) -> Action {
         }
         KeyCode::Backspace => Action::Backspace,
         KeyCode::Enter => Action::Clear,
+        KeyCode::Tab => Action::Tab,
         _ => Action::None,
     }
 }
@@ -45,12 +47,24 @@ pub fn update(app: &mut App, action: Action) {
             app.reset_scroll();
         }
         Action::Clear => {
+            if !app.input().trim().is_empty() {
+                // Record in history when executing a query
+                app.record_query(app.input().to_string());
+            }
             app.clear_input();
             app.reset_scroll();
         }
         Action::ScrollUp => app.scroll_up(),
         Action::ScrollDown => app.scroll_down(),
-        Action::None => {}
+        Action::Tab => {
+            // Handle when the TAB key is pressed
+            if let Some(suggestion) = app.get_best_suggestion() {
+                app.apply_suggestion(suggestion);
+            }
+        }
+        Action::None => {
+            // Do nothing for undefined keys
+        }
     }
 }
 
@@ -90,5 +104,18 @@ mod tests {
             KeyModifiers::NONE,
         ));
         assert_eq!(action, Action::ScrollDown);
+
+        let action = get_action(crossterm::event::KeyEvent::new(
+            KeyCode::Tab,
+            KeyModifiers::NONE,
+        ));
+        assert_eq!(action, Action::Tab);
+
+        // Test space character input
+        let action = get_action(crossterm::event::KeyEvent::new(
+            KeyCode::Char(' '),
+            KeyModifiers::NONE,
+        ));
+        assert_eq!(action, Action::Input(' '));
     }
 }
