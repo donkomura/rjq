@@ -135,9 +135,8 @@ impl ThemeCatalog {
     }
 
     pub fn resolve(&self, spec: &str) -> Result<Theme, ThemeError> {
-        let path = Path::new(spec);
-        if path.is_file() {
-            return load_theme_file(path);
+        if spec.chars().any(std::path::is_separator) {
+            return Err(ThemeError::NotFound(spec.to_string()));
         }
         if spec.eq_ignore_ascii_case(DEFAULT_THEME) {
             return Ok(Theme::ansi());
@@ -360,8 +359,6 @@ mod tests {
         let dir = temp_dir("resolve");
         let themes_dir = dir.join("themes");
         fs::create_dir_all(&themes_dir).unwrap();
-        let direct = dir.join("direct.tmTheme");
-        fs::write(&direct, fixture(&[rule("string", "#abcdef", "")])).unwrap();
         fs::write(
             themes_dir.join("mine.tmTheme"),
             fixture(&[rule("string", "#123456", "")]),
@@ -374,11 +371,6 @@ mod tests {
                 "default ansi theme",
                 DEFAULT_THEME.to_string(),
                 Theme::ansi().style(&TokenType::String),
-            ),
-            (
-                "file path",
-                direct.to_str().unwrap().to_string(),
-                fg(0xabcdef),
             ),
             ("theme directory", "mine".to_string(), fg(0x123456)),
         ];
@@ -402,6 +394,39 @@ mod tests {
     }
 
     #[test]
+    fn test_resolve_rejects_file_paths() {
+        let dir = temp_dir("paths");
+        let themes_dir = dir.join("themes");
+        fs::create_dir_all(&themes_dir).unwrap();
+        let outside = dir.join("outside.tmTheme");
+        fs::write(&outside, fixture(&[])).unwrap();
+        let catalog = ThemeCatalog::new(Some(themes_dir));
+
+        let tests = vec![
+            (
+                "absolute path to a theme file",
+                outside.to_str().unwrap().to_string(),
+            ),
+            (
+                "absolute path without extension",
+                dir.join("outside").to_str().unwrap().to_string(),
+            ),
+            (
+                "relative path out of theme directory",
+                "../outside".to_string(),
+            ),
+        ];
+
+        for (name, spec) in tests {
+            assert!(
+                matches!(catalog.resolve(&spec), Err(ThemeError::NotFound(s)) if s == spec),
+                "{name}"
+            );
+        }
+        fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
     fn test_resolve_errors() {
         let dir = temp_dir("errors");
         let broken = dir.join("broken.tmTheme");
@@ -411,10 +436,6 @@ mod tests {
         assert!(matches!(
             catalog.resolve("no-such-theme"),
             Err(ThemeError::NotFound(name)) if name == "no-such-theme"
-        ));
-        assert!(matches!(
-            catalog.resolve(broken.to_str().unwrap()),
-            Err(ThemeError::Load { path, .. }) if path == broken
         ));
         assert!(matches!(
             catalog.resolve("broken"),

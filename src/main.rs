@@ -22,8 +22,8 @@ struct CliArgs {
     #[arg(long, value_name = "SECONDS", default_value = "1", value_parser = parse_seconds)]
     no_match_delay: Duration,
 
-    /// Syntax highlighting theme: a built-in name, a name in ~/.config/rjq/themes, or a .tmTheme file path
-    #[arg(long, value_name = "NAME|PATH", env = "RJQ_THEME")]
+    /// Syntax highlighting theme: a built-in name or the name of a .tmTheme file in ~/.config/rjq/themes
+    #[arg(long, value_name = "NAME", env = "RJQ_THEME")]
     theme: Option<String>,
 
     /// List available syntax highlighting themes and exit

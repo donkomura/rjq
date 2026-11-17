@@ -1,8 +1,7 @@
+use crate::ui::Theme;
 use std::time::Duration;
 
 const DEFAULT_NO_MATCH_DELAY: Duration = Duration::from_secs(1);
-
-use crate::ui::Theme;
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {

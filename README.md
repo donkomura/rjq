@@ -75,7 +75,7 @@ Usage: rjq [OPTIONS]
 Options:
   -f, --file <FILE>               JSON file to process (reads from stdin if not provided)
       --no-match-delay <SECONDS>  Seconds to keep showing the last matching result while the query matches nothing [default: 1]
-      --theme <NAME|PATH>         Syntax highlighting theme: a built-in name, a name in ~/.config/rjq/themes, or a .tmTheme file path [env: RJQ_THEME=]
+      --theme <NAME>              Syntax highlighting theme: a built-in name or the name of a .tmTheme file in ~/.config/rjq/themes [env: RJQ_THEME=]
       --list-themes               List available syntax highlighting themes and exit
   -h, --help                      Print help
   -V, --version                   Print version
@@ -92,14 +92,11 @@ rjq --list-themes
 # Use a built-in theme
 rjq --theme base16-ocean.dark -f data.json
 
-# Use a TextMate theme file directly
-rjq --theme ~/Downloads/Dracula.tmTheme -f data.json
-
 # Set a default theme in your shell profile
 export RJQ_THEME="Solarized (dark)"
 ```
 
-External themes use the TextMate `.tmTheme` format, the same format used by Sublime Text, bat, and delta. Put a theme file in `$XDG_CONFIG_HOME/rjq/themes` (`~/.config/rjq/themes` when `XDG_CONFIG_HOME` is unset) to refer to it by its file name without the extension:
+External themes use the TextMate `.tmTheme` format, the same format used by Sublime Text, bat, and delta. Put a theme file in `$XDG_CONFIG_HOME/rjq/themes` (`~/.config/rjq/themes` when `XDG_CONFIG_HOME` is unset) and refer to it by its file name without the extension. File paths are not accepted by `--theme`:
 
 ```bash
 mkdir -p ~/.config/rjq/themes
@@ -110,7 +107,7 @@ rjq --theme Dracula -f data.json
 cp ~/.config/bat/themes/*.tmTheme ~/.config/rjq/themes/
 ```
 
-A theme name is resolved in this order: an existing file path, a built-in theme name (case-insensitive), then `<NAME>.tmTheme` in the theme directory. rjq exits with an error if none of them match.
+A theme name is resolved in this order: a built-in theme name (case-insensitive), then `<NAME>.tmTheme` in the theme directory. rjq exits with an error if none of them match.
 
 Theme colors other than `ansi` are drawn in 24-bit color, and only the foreground colors and font styles are applied. The terminal background is kept, so choose a theme that matches your terminal's light or dark background.
 
