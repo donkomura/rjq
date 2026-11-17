@@ -3,6 +3,7 @@ use crossterm::{event::EnableMouseCapture, execute, terminal::enable_raw_mode};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::fs::File;
 use std::io::{self, IsTerminal, Read};
+use std::time::Duration;
 
 use rjq::{App, AppConfig, Result, restore_terminal, spawn_reader};
 
@@ -15,6 +16,15 @@ struct CliArgs {
     /// JSON file to process (reads from stdin if not provided)
     #[arg(short, long, value_name = "FILE")]
     file: Option<String>,
+
+    /// Seconds to keep showing the last matching result while the query matches nothing
+    #[arg(long, value_name = "SECONDS", default_value = "1", value_parser = parse_seconds)]
+    no_match_delay: Duration,
+}
+
+fn parse_seconds(value: &str) -> std::result::Result<Duration, String> {
+    let seconds: f64 = value.parse().map_err(|e| format!("{e}"))?;
+    Duration::try_from_secs_f64(seconds).map_err(|e| format!("{e}"))
 }
 
 fn open_input(file: Option<&str>, stdin_is_terminal: bool) -> io::Result<Box<dyn Read + Send>> {
@@ -48,7 +58,11 @@ fn run() -> Result<()> {
     let backend = CrosstermBackend::new(stderr);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::loading(AppConfig::default());
+    let config = AppConfig {
+        no_match_delay: cli_args.no_match_delay,
+        ..AppConfig::default()
+    };
+    let mut app = App::loading(config);
     let res = app.run(&mut terminal, inputs);
 
     restore_terminal(&mut terminal).ok();
@@ -88,6 +102,35 @@ mod tests {
         use clap::Parser;
         let args = CliArgs::parse_from(["rjq", "-f", "test.json"]);
         assert_eq!(args.file, Some("test.json".to_string()));
+    }
+
+    #[test]
+    fn test_cli_args_no_match_delay() {
+        use clap::Parser;
+        use std::time::Duration;
+        let tests = vec![
+            ("default", vec!["rjq"], Duration::from_secs(1)),
+            (
+                "fractional seconds",
+                vec!["rjq", "--no-match-delay", "0.5"],
+                Duration::from_millis(500),
+            ),
+            ("zero", vec!["rjq", "--no-match-delay", "0"], Duration::ZERO),
+        ];
+
+        for (name, argv, expected) in tests {
+            let args = CliArgs::parse_from(argv);
+            assert_eq!(expected, args.no_match_delay, "{name}");
+        }
+    }
+
+    #[test]
+    fn test_cli_args_rejects_invalid_no_match_delay() {
+        use clap::Parser;
+        for value in ["-1", "abc", "inf", "NaN"] {
+            let result = CliArgs::try_parse_from(["rjq", "--no-match-delay", value]);
+            assert!(result.is_err(), "{value}");
+        }
     }
 
     #[test]
