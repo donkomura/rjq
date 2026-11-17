@@ -136,7 +136,15 @@ struct App {
 | 名前 | 内容 |
 | --- | --- |
 | `ansi` | 既定。従来の配色で、ANSI 16 色を使うためターミナルのパレットに追従する |
-| syntect 同梱の 7 種 | `base16-ocean.dark`、`Solarized (dark)`、`InspiredGitHub` など。24 bit カラーで描画する |
+| `eighties-dark` | syntect 同梱の `base16-eighties.dark` |
+| `github` | syntect 同梱の `InspiredGitHub` |
+| `mocha-dark` | syntect 同梱の `base16-mocha.dark` |
+| `ocean-dark` | syntect 同梱の `base16-ocean.dark` |
+| `ocean-light` | syntect 同梱の `base16-ocean.light` |
+| `solarized-dark` | syntect 同梱の `Solarized (dark)` |
+| `solarized-light` | syntect 同梱の `Solarized (light)` |
+
+`ansi` 以外は 24 bit カラーで描画する。syntect 同梱テーマの名前は `base16-ocean.dark` や `Solarized (dark)` のように表記が揃っておらず、空白や括弧を含むものはシェルで引用符が要る。そのため rjq では小文字のハイフン区切りの名前を付け、syntect の名前では指定できないようにする。
 
 ### トークンとスコープの対応
 

@@ -10,6 +10,16 @@ use thiserror::Error;
 pub const DEFAULT_THEME: &str = "ansi";
 const THEME_EXTENSION: &str = "tmTheme";
 
+const BUILTIN_THEMES: [(&str, &str); 7] = [
+    ("eighties-dark", "base16-eighties.dark"),
+    ("github", "InspiredGitHub"),
+    ("mocha-dark", "base16-mocha.dark"),
+    ("ocean-dark", "base16-ocean.dark"),
+    ("ocean-light", "base16-ocean.light"),
+    ("solarized-dark", "Solarized (dark)"),
+    ("solarized-light", "Solarized (light)"),
+];
+
 const KEY_SCOPES: &str =
     "source.json meta.mapping.key.json string.quoted.double.json support.type.property-name.json";
 const STRING_SCOPES: &str = "source.json meta.mapping.value.json string.quoted.double.json";
@@ -122,14 +132,24 @@ fn to_style(foreground: Option<syntect::highlighting::Color>, font_style: FontSt
 }
 
 pub struct ThemeCatalog {
-    builtin: ThemeSet,
+    builtin: Vec<(&'static str, syntect::highlighting::Theme)>,
     themes_dir: Option<PathBuf>,
 }
 
 impl ThemeCatalog {
     pub fn new(themes_dir: Option<PathBuf>) -> Self {
+        let mut bundled = ThemeSet::load_defaults().themes;
+        let builtin = BUILTIN_THEMES
+            .iter()
+            .map(|(name, bundled_name)| {
+                let theme = bundled
+                    .remove(*bundled_name)
+                    .expect("BUILTIN_THEMES refers only to themes bundled with syntect");
+                (*name, theme)
+            })
+            .collect();
         Self {
-            builtin: ThemeSet::load_defaults(),
+            builtin,
             themes_dir,
         }
     }
@@ -143,7 +163,6 @@ impl ThemeCatalog {
         }
         if let Some(theme) = self
             .builtin
-            .themes
             .iter()
             .find_map(|(name, theme)| name.eq_ignore_ascii_case(spec).then_some(theme))
         {
@@ -160,7 +179,7 @@ impl ThemeCatalog {
 
     pub fn names(&self) -> Result<Vec<String>, ThemeError> {
         let mut names = vec![DEFAULT_THEME.to_string()];
-        names.extend(self.builtin.themes.keys().cloned());
+        names.extend(self.builtin.iter().map(|(name, _)| name.to_string()));
         if let Some(dir) = &self.themes_dir {
             names.extend(theme_names_in(dir)?);
         }
@@ -383,13 +402,36 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_builtin_theme_ignores_case() {
+    fn test_resolve_builtin_theme_by_hyphenated_name() {
         let catalog = ThemeCatalog::new(None);
-        let builtin = ThemeSet::load_defaults();
-        let expected = Theme::from_textmate(&builtin.themes["Solarized (dark)"]);
+        let bundled = ThemeSet::load_defaults();
 
-        for spec in ["Solarized (dark)", "solarized (DARK)"] {
+        let tests = vec![
+            ("eighties-dark", "base16-eighties.dark"),
+            ("github", "InspiredGitHub"),
+            ("mocha-dark", "base16-mocha.dark"),
+            ("ocean-dark", "base16-ocean.dark"),
+            ("ocean-light", "base16-ocean.light"),
+            ("solarized-dark", "Solarized (dark)"),
+            ("solarized-light", "Solarized (light)"),
+            ("Solarized-Dark", "Solarized (dark)"),
+        ];
+
+        for (spec, bundled_name) in tests {
+            let expected = Theme::from_textmate(&bundled.themes[bundled_name]);
             assert_eq!(expected, catalog.resolve(spec).unwrap(), "{spec}");
+        }
+    }
+
+    #[test]
+    fn test_resolve_rejects_bundled_theme_names() {
+        let catalog = ThemeCatalog::new(None);
+
+        for spec in ThemeSet::load_defaults().themes.into_keys() {
+            assert!(
+                matches!(catalog.resolve(&spec), Err(ThemeError::NotFound(s)) if s == spec),
+                "{spec}"
+            );
         }
     }
 
@@ -450,8 +492,18 @@ mod tests {
         fs::write(dir.join("zeta.tmTheme"), fixture(&[])).unwrap();
         fs::write(dir.join("alpha.tmTheme"), fixture(&[])).unwrap();
         fs::write(dir.join("notes.txt"), "ignored").unwrap();
-        let mut builtin: Vec<String> = ThemeSet::load_defaults().themes.into_keys().collect();
-        builtin.insert(0, DEFAULT_THEME.to_string());
+        let builtin: Vec<String> = [
+            "ansi",
+            "eighties-dark",
+            "github",
+            "mocha-dark",
+            "ocean-dark",
+            "ocean-light",
+            "solarized-dark",
+            "solarized-light",
+        ]
+        .map(String::from)
+        .to_vec();
 
         let tests = vec![
             ("with theme directory", Some(dir.clone()), {

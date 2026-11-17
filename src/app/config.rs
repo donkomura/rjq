@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn test_with_theme() {
         let theme = crate::ui::ThemeCatalog::new(None)
-            .resolve("InspiredGitHub")
+            .resolve("github")
             .unwrap();
 
         assert_eq!(Theme::ansi(), AppConfig::default().theme);

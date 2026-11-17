@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn test_highlight_uses_given_theme() {
         let theme = crate::ui::ThemeCatalog::new(None)
-            .resolve("base16-ocean.dark")
+            .resolve("ocean-dark")
             .unwrap();
         let highlighter = SyntaxHighlighter::with_theme(theme);
 

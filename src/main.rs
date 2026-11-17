@@ -160,8 +160,8 @@ mod tests {
             ("no theme", vec!["rjq"], None, false),
             (
                 "theme name",
-                vec!["rjq", "--theme", "base16-ocean.dark"],
-                Some("base16-ocean.dark".to_string()),
+                vec!["rjq", "--theme", "ocean-dark"],
+                Some("ocean-dark".to_string()),
                 false,
             ),
             ("list themes", vec!["rjq", "--list-themes"], None, true),

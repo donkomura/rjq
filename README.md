@@ -90,10 +90,10 @@ The default `ansi` theme uses the 16 ANSI colors, so it follows your terminal's 
 rjq --list-themes
 
 # Use a built-in theme
-rjq --theme base16-ocean.dark -f data.json
+rjq --theme ocean-dark -f data.json
 
 # Set a default theme in your shell profile
-export RJQ_THEME="Solarized (dark)"
+export RJQ_THEME=solarized-dark
 ```
 
 External themes use the TextMate `.tmTheme` format, the same format used by Sublime Text, bat, and delta. Put a theme file in `$XDG_CONFIG_HOME/rjq/themes` (`~/.config/rjq/themes` when `XDG_CONFIG_HOME` is unset) and refer to it by its file name without the extension. File paths are not accepted by `--theme`:
@@ -106,6 +106,8 @@ rjq --theme Dracula -f data.json
 # Reuse the themes you already have for bat
 cp ~/.config/bat/themes/*.tmTheme ~/.config/rjq/themes/
 ```
+
+Built-in themes are `ansi`, `eighties-dark`, `github`, `mocha-dark`, `ocean-dark`, `ocean-light`, `solarized-dark`, and `solarized-light`.
 
 A theme name is resolved in this order: a built-in theme name (case-insensitive), then `<NAME>.tmTheme` in the theme directory. rjq exits with an error if none of them match.
 
