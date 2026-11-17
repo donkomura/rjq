@@ -1,10 +1,13 @@
 use clap::Parser;
 use crossterm::{event::EnableMouseCapture, execute, terminal::enable_raw_mode};
 use ratatui::{Terminal, backend::CrosstermBackend};
+use std::fmt;
 use std::fs::File;
 use std::io::{self, IsTerminal, Read};
+use std::str::FromStr;
 use std::time::Duration;
 
+use rjq::app::config::DEFAULT_NO_MATCH_DELAY;
 use rjq::ui::theme::{DEFAULT_THEME, default_themes_dir};
 use rjq::{App, AppConfig, Result, ThemeCatalog, restore_terminal, spawn_reader};
 
@@ -19,8 +22,8 @@ struct CliArgs {
     file: Option<String>,
 
     /// Seconds to keep showing the last matching result while the query matches nothing
-    #[arg(long, value_name = "SECONDS", default_value = "1", value_parser = parse_seconds)]
-    no_match_delay: Duration,
+    #[arg(long, value_name = "SECONDS", default_value_t = Seconds(DEFAULT_NO_MATCH_DELAY))]
+    no_match_delay: Seconds,
 
     /// Syntax highlighting theme: a built-in name or the name of a .tmTheme file in ~/.config/rjq/themes
     #[arg(long, value_name = "NAME", env = "RJQ_THEME")]
@@ -31,9 +34,24 @@ struct CliArgs {
     list_themes: bool,
 }
 
-fn parse_seconds(value: &str) -> std::result::Result<Duration, String> {
-    let seconds: f64 = value.parse().map_err(|e| format!("{e}"))?;
-    Duration::try_from_secs_f64(seconds).map_err(|e| format!("{e}"))
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Seconds(Duration);
+
+impl fmt::Display for Seconds {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.as_secs_f64())
+    }
+}
+
+impl FromStr for Seconds {
+    type Err = String;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        let seconds: f64 = value.parse().map_err(|e| format!("{e}"))?;
+        Duration::try_from_secs_f64(seconds)
+            .map(Seconds)
+            .map_err(|e| format!("{e}"))
+    }
 }
 
 fn open_input(file: Option<&str>, stdin_is_terminal: bool) -> io::Result<Box<dyn Read + Send>> {
@@ -78,7 +96,7 @@ fn run() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let config = AppConfig {
-        no_match_delay: cli_args.no_match_delay,
+        no_match_delay: cli_args.no_match_delay.0,
         ..AppConfig::default()
     }
     .with_theme(theme);
@@ -140,7 +158,7 @@ mod tests {
 
         for (name, argv, expected) in tests {
             let args = CliArgs::parse_from(argv);
-            assert_eq!(expected, args.no_match_delay, "{name}");
+            assert_eq!(expected, args.no_match_delay.0, "{name}");
         }
     }
 

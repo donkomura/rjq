@@ -65,7 +65,13 @@ impl QueryRun {
 
 struct Candidate {
     evaluation: Result<QueryRun, AppError>,
-    deadline: Instant,
+    deadline: Option<Instant>,
+}
+
+impl Candidate {
+    fn is_due(&self, now: Instant) -> bool {
+        self.deadline.is_some_and(|deadline| now >= deadline)
+    }
 }
 
 pub struct App {
@@ -113,17 +119,11 @@ impl App {
         }) = &mut self.candidate
         {
             run.push(&input);
+            if run.matched {
+                self.promote_candidate();
+            }
         }
         self.inputs.push(input);
-        if let Some(Candidate {
-            evaluation: Ok(run),
-            ..
-        }) = self
-            .candidate
-            .take_if(|c| matches!(&c.evaluation, Ok(run) if run.matched))
-        {
-            self.show(run);
-        }
     }
 
     pub fn finish_loading(&mut self) {
@@ -164,16 +164,12 @@ impl App {
     }
 
     pub fn next_deadline(&self) -> Option<Instant> {
-        self.candidate.as_ref().map(|c| c.deadline)
+        self.candidate.as_ref().and_then(|c| c.deadline)
     }
 
     pub fn tick(&mut self, now: Instant) {
-        let Some(candidate) = self.candidate.take_if(|c| now >= c.deadline) else {
-            return;
-        };
-        match candidate.evaluation {
-            Ok(run) => self.show(run),
-            Err(error) => self.state.last_error = Some(error),
+        if self.candidate.as_ref().is_some_and(|c| c.is_due(now)) {
+            self.promote_candidate();
         }
     }
 
@@ -198,7 +194,21 @@ impl App {
         self.state.reset_scroll();
     }
 
+    fn display(&mut self, evaluation: Result<QueryRun, AppError>) {
+        match evaluation {
+            Ok(run) => self.show(run),
+            Err(error) => self.state.last_error = Some(error),
+        }
+    }
+
+    fn promote_candidate(&mut self) {
+        if let Some(candidate) = self.candidate.take() {
+            self.display(candidate.evaluation);
+        }
+    }
+
     fn rerun_query(&mut self) {
+        let showing_last_match = self.shown.matched && self.state.last_error.is_none();
         self.state.last_error = None;
         self.candidate = None;
         let source = match self.state.input.as_str() {
@@ -210,14 +220,14 @@ impl App {
         }
         let evaluation = CompiledQuery::compile(source)
             .map(|query| QueryRun::new(source.to_string(), query, &self.inputs));
-        match evaluation {
-            Ok(run) if run.matched => self.show(run),
-            evaluation => {
-                self.candidate = Some(Candidate {
-                    evaluation,
-                    deadline: Instant::now() + self.config.no_match_delay,
-                })
-            }
+        let matched = matches!(&evaluation, Ok(run) if run.matched);
+        if matched || !showing_last_match {
+            self.display(evaluation);
+        } else {
+            self.candidate = Some(Candidate {
+                evaluation,
+                deadline: Instant::now().checked_add(self.config.no_match_delay),
+            });
         }
     }
 
@@ -448,7 +458,55 @@ mod tests {
 
         app.push_char('n');
         assert!(app.last_error().is_none());
-        assert_eq!(pretty_lines(&json!({"name": "rjq"})), app.visible_lines(10));
+        assert_eq!(vec!["null".to_string()], app.visible_lines(10));
+        assert_eq!("1 values", app.status_line());
+        assert_eq!(None, app.next_deadline());
+    }
+
+    #[test]
+    fn test_compile_error_stays_while_query_keeps_failing_to_compile() {
+        let mut app = App::new(json!({"metadata": {"name": "rjq"}}));
+        type_query(&mut app, ".\"foo");
+        app.tick(after_no_match_delay());
+        assert!(matches!(app.last_error(), Some(AppError::QueryCompile(_))));
+
+        type_query(&mut app, " bar");
+
+        assert!(matches!(app.last_error(), Some(AppError::QueryCompile(_))));
+        assert_eq!("1 values", app.status_line());
+        assert_eq!(None, app.next_deadline());
+    }
+
+    #[test]
+    fn test_unmatched_result_shown_after_delay_is_not_kept_as_last_match() {
+        let mut app = App::new(json!({"metadata": {"name": "rjq"}}));
+        type_query(&mut app, ".metadata.na");
+        app.tick(after_no_match_delay());
+
+        app.push_char('m');
+
+        assert_eq!(vec!["null".to_string()], app.visible_lines(10));
+        assert_eq!("1 values", app.status_line());
+        assert_eq!(None, app.next_deadline());
+
+        app.push_char('e');
+        assert_eq!(vec!["\"rjq\"".to_string()], app.visible_lines(10));
+    }
+
+    #[test]
+    fn test_no_match_delay_too_long_for_instant_never_shows_unmatched_result() {
+        let config = AppConfig {
+            no_match_delay: Duration::MAX,
+            ..AppConfig::default()
+        };
+        let mut app = App::with_config(json!({"a": 1}), config);
+
+        type_query(&mut app, ".b");
+        app.tick(Instant::now() + Duration::from_secs(60 * 60 * 24 * 365));
+
+        assert_eq!(pretty_lines(&json!({"a": 1})), app.visible_lines(10));
+        assert_eq!("1 values | showing: .", app.status_line());
+        assert_eq!(None, app.next_deadline());
     }
 
     #[test]
