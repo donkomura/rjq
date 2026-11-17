@@ -40,7 +40,7 @@ rjq -f data.json
 Once rjq starts, you can:
 
 1. **Enter jq queries**: Type any jq-compatible query in the input field
-   - While the query is incomplete or matches nothing (compile error, no output, or only `null`), the last matching result stays visible and the status line shows which query it belongs to. The actual result appears after 1 second without typing (configurable with `--no-match-delay`)
+   - While the query is incomplete or matches nothing (compile error, no output, or only `null`), the last matching result stays visible and the status line shows which query it belongs to. The actual result appears after 1 second without typing (configurable with `--no-match-delay`). Once that result or error is on screen, further edits update the view immediately until a query matches again
 2. **Navigate results**: Use `↑`/`↓` arrow keys to scroll through large JSON outputs
 3. **Clear input**: Press `Ctrl+U` to clear the current query
 4. **Exit**: Press `Ctrl+C` or `q` to quit

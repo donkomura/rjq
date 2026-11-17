@@ -38,13 +38,11 @@ pub fn update(app: &mut App, action: Action) {
         Action::Quit => app.set_exit(true),
         Action::Input(c) => {
             app.push_char(c);
-            app.reset_scroll();
         }
         Action::Backspace => {
             if !app.input().is_empty() {
                 app.pop_char();
             }
-            app.reset_scroll();
         }
         Action::Clear => {
             if !app.input().trim().is_empty() {
@@ -52,7 +50,6 @@ pub fn update(app: &mut App, action: Action) {
                 app.record_query(app.input().to_string());
             }
             app.clear_input();
-            app.reset_scroll();
         }
         Action::ScrollUp => app.scroll_up(),
         Action::ScrollDown => app.scroll_down(),
@@ -71,7 +68,42 @@ pub fn update(app: &mut App, action: Action) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::AppConfig;
     use crossterm::event::{KeyCode, KeyModifiers};
+
+    #[test]
+    fn test_editing_query_keeps_scroll_until_result_changes() {
+        let items: Vec<u32> = (0..50).collect();
+        let mut app = App::with_config(
+            serde_json::json!({ "items": items }),
+            AppConfig::with_visible_height(10),
+        );
+        for c in ".items".chars() {
+            update(&mut app, Action::Input(c));
+        }
+        update(&mut app, Action::ScrollDown);
+        update(&mut app, Action::ScrollDown);
+        assert_eq!(2, app.scroll_offset());
+
+        update(&mut app, Action::Input('.'));
+        assert_eq!(
+            2,
+            app.scroll_offset(),
+            "unmatched input keeps the shown result"
+        );
+
+        update(&mut app, Action::Backspace);
+        assert_eq!(2, app.scroll_offset(), "editing back to the shown query");
+
+        update(&mut app, Action::Input('['));
+        update(&mut app, Action::Input('0'));
+        update(&mut app, Action::Input(']'));
+        assert_eq!(
+            0,
+            app.scroll_offset(),
+            "a new matching result starts at the top"
+        );
+    }
 
     #[test]
     fn test_key_action_mapping() {

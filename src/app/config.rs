@@ -1,7 +1,7 @@
 use crate::ui::Theme;
 use std::time::Duration;
 
-const DEFAULT_NO_MATCH_DELAY: Duration = Duration::from_secs(1);
+pub const DEFAULT_NO_MATCH_DELAY: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
@@ -26,18 +26,14 @@ impl AppConfig {
     pub fn with_prompt(prompt: &'static str) -> Self {
         Self {
             prompt,
-            visible_height: 20,
-            no_match_delay: DEFAULT_NO_MATCH_DELAY,
-            theme: Theme::ansi(),
+            ..Self::default()
         }
     }
 
     pub fn with_visible_height(visible_height: usize) -> Self {
         Self {
-            prompt: "query > ",
             visible_height,
-            no_match_delay: DEFAULT_NO_MATCH_DELAY,
-            theme: Theme::ansi(),
+            ..Self::default()
         }
     }
 
@@ -50,8 +46,7 @@ impl AppConfig {
         Self {
             prompt,
             visible_height,
-            no_match_delay: DEFAULT_NO_MATCH_DELAY,
-            theme: Theme::ansi(),
+            ..Self::default()
         }
     }
 }
