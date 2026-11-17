@@ -10,6 +10,7 @@ pub use state::AppState;
 
 use crate::input::InputEvent;
 use crate::query::{CompiledQuery, into_val};
+use crate::ui::Theme;
 use crate::view::PrettyDocument;
 use jaq_json::Val;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -231,6 +232,10 @@ impl App {
 
     pub fn prompt(&self) -> &str {
         self.config.prompt
+    }
+
+    pub fn theme(&self) -> &Theme {
+        &self.config.theme
     }
 
     pub fn last_error(&self) -> Option<&AppError> {

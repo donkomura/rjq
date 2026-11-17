@@ -12,7 +12,10 @@ pub use query::{
     CachedQueryExecutor, CompiledQuery, InMemoryQueryCache, JaqQueryExecutor, JsonData, QueryCache,
     QueryExecutor, QueryResult, into_val,
 };
-pub use ui::{Action, DefaultEventHandler, EventHandler, get_action, restore_terminal, update};
+pub use ui::{
+    Action, DefaultEventHandler, EventHandler, Theme, ThemeCatalog, ThemeError, get_action,
+    restore_terminal, update,
+};
 pub use view::PrettyDocument;
 
 pub type Result<T> = std::result::Result<T, AppError>;

@@ -75,9 +75,43 @@ Usage: rjq [OPTIONS]
 Options:
   -f, --file <FILE>               JSON file to process (reads from stdin if not provided)
       --no-match-delay <SECONDS>  Seconds to keep showing the last matching result while the query matches nothing [default: 1]
+      --theme <NAME>              Syntax highlighting theme: a built-in name or the name of a .tmTheme file in ~/.config/rjq/themes [env: RJQ_THEME=]
+      --list-themes               List available syntax highlighting themes and exit
   -h, --help                      Print help
   -V, --version                   Print version
 ```
+
+## Syntax Highlighting Themes
+
+The default `ansi` theme uses the 16 ANSI colors, so it follows your terminal's palette. If the colors are hard to read, pick another theme with `--theme` or the `RJQ_THEME` environment variable. `--theme` wins when both are set.
+
+```bash
+# List built-in themes and themes in the theme directory
+rjq --list-themes
+
+# Use a built-in theme
+rjq --theme ocean-dark -f data.json
+
+# Set a default theme in your shell profile
+export RJQ_THEME=solarized-dark
+```
+
+External themes use the TextMate `.tmTheme` format, the same format used by Sublime Text, bat, and delta. Put a theme file in `$XDG_CONFIG_HOME/rjq/themes` (`~/.config/rjq/themes` when `XDG_CONFIG_HOME` is unset) and refer to it by its file name without the extension. File paths are not accepted by `--theme`:
+
+```bash
+mkdir -p ~/.config/rjq/themes
+cp Dracula.tmTheme ~/.config/rjq/themes/
+rjq --theme Dracula -f data.json
+
+# Reuse the themes you already have for bat
+cp ~/.config/bat/themes/*.tmTheme ~/.config/rjq/themes/
+```
+
+Built-in themes are `ansi`, `eighties-dark`, `github`, `mocha-dark`, `ocean-dark`, `ocean-light`, `solarized-dark`, and `solarized-light`.
+
+A theme name is resolved in this order: a built-in theme name (case-insensitive), then `<NAME>.tmTheme` in the theme directory. rjq exits with an error if none of them match.
+
+Theme colors other than `ansi` are drawn in 24-bit color, and only the foreground colors and font styles are applied. The terminal background is kept, so choose a theme that matches your terminal's light or dark background.
 
 ## Architecture
 

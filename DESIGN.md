@@ -110,6 +110,67 @@ struct App {
 コンパイル → フィルタ生成 → JSON実行 → 結果取得
 ```
 
+## シンタックスハイライトのテーマ
+
+結果表示の配色はテーマとして差し替えられる。ターミナルの配色によっては固定の ANSI 色が背景に埋もれて読めなくなるため、組み込みテーマから選ぶか、外部のテーマファイルを読み込めるようにする。
+
+### 外部テーマの形式
+
+外部テーマは TextMate テーマ（`.tmTheme`）を受け付ける。Sublime Text、bat、delta が共通で使う形式で、配布されているテーマが多く、bat 用に手元にあるテーマもそのまま使える。読み込みとスコープの照合には syntect を使う。
+
+### テーマの指定と解決
+
+`--theme <NAME>` または環境変数 `RJQ_THEME` でテーマを指定する。両方あるときは `--theme` を優先する。指定値は次の順に解決し、どれにも当たらなければ TUI を起動する前にエラーで終了する。別のテーマで代替表示することはしない。
+
+1. 組み込みテーマ名に一致すれば、それを使う。名前は大文字と小文字を区別しない
+2. テーマディレクトリにある `<NAME>.tmTheme` を読み込む
+
+ファイルパスは受け付けない。値をパスとして解釈すると、カレントディレクトリに組み込みテーマと同名のファイルがあるだけで指定の意味が変わってしまうからである。外部テーマはテーマディレクトリに置いて名前で指定する。パス区切り文字を含む値は、テーマディレクトリの外を指せないように見つからない扱いにする。
+
+テーマディレクトリは `$XDG_CONFIG_HOME/rjq/themes` とし、`XDG_CONFIG_HOME` が未設定なら `~/.config/rjq/themes` を使う。macOS でも `~/Library/Application Support` ではなくこちらを使うのは、他の CLI ツールの設定と置き場所を揃えるためである。
+
+`--list-themes` は組み込みテーマとテーマディレクトリ内のテーマの名前を一覧表示して終了する。
+
+組み込みテーマは次のとおり。
+
+| 名前 | 内容 |
+| --- | --- |
+| `ansi` | 既定。従来の配色で、ANSI 16 色を使うためターミナルのパレットに追従する |
+| `eighties-dark` | syntect 同梱の `base16-eighties.dark` |
+| `github` | syntect 同梱の `InspiredGitHub` |
+| `mocha-dark` | syntect 同梱の `base16-mocha.dark` |
+| `ocean-dark` | syntect 同梱の `base16-ocean.dark` |
+| `ocean-light` | syntect 同梱の `base16-ocean.light` |
+| `solarized-dark` | syntect 同梱の `Solarized (dark)` |
+| `solarized-light` | syntect 同梱の `Solarized (light)` |
+
+`ansi` 以外は 24 bit カラーで描画する。syntect 同梱テーマの名前は `base16-ocean.dark` や `Solarized (dark)` のように表記が揃っておらず、空白や括弧を含むものはシェルで引用符が要る。そのため rjq では小文字のハイフン区切りの名前を付け、syntect の名前では指定できないようにする。
+
+### トークンとスコープの対応
+
+rjq は JSON を自前のトークナイザーで分解し、`TokenType` ごとに色を決める。TextMate テーマはスコープで色を引くので、各 `TokenType` に JSON 文法の標準的なスコープスタックを対応させ、syntect のセレクタ照合で色を決める。
+
+| TokenType | スコープスタック（先頭の `source.json` は省略） |
+| --- | --- |
+| Key | `meta.mapping.key.json string.quoted.double.json support.type.property-name.json` |
+| String | `meta.mapping.value.json string.quoted.double.json` |
+| Number | `constant.numeric.json` |
+| Boolean | `constant.language.boolean.json` |
+| Null | `constant.language.null.json` |
+| Bracket | `punctuation.section.mapping.json` |
+| Punctuation | `punctuation.separator.json` |
+| Default | なし（テーマの前景色） |
+
+Key には Sublime Text の JSON 文法が使う `meta.mapping.key` と、VS Code の JSON 文法が使う `support.type.property-name` の両方を積む。どちらの流儀で書かれたテーマでもキーの色が当たるようにするためである。
+
+太字、斜体、下線はテーマの指定どおりに反映する。背景色は反映しない。bat と同じくターミナルの背景をそのまま使うので、ターミナルの明暗に合ったテーマを選ぶ必要がある。
+
+### 構成
+
+- `ui::theme::Theme` が `TokenType` ごとの `Style` を持つ。`Theme::ansi()` と `Theme::from_textmate()` で作る
+- `ui::theme::ThemeCatalog` がテーマ名の解決と一覧を担う。テーマディレクトリは引数で受け取り、テストから差し替えられるようにする
+- `AppConfig` が `Theme` を持ち、描画時に `SyntaxHighlighter` へ渡す
+
 ## キーバインド
 
 | キー | アクション |

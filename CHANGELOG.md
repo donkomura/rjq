@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Selectable syntax highlighting themes via `--theme <NAME>` or `RJQ_THEME`
+  - Built-in themes: `ansi` (default), `eighties-dark`, `github`, `mocha-dark`, `ocean-dark`, `ocean-light`, `solarized-dark`, `solarized-light`
+  - External TextMate `.tmTheme` files placed in `~/.config/rjq/themes`, referred to by name
+- `--list-themes` to show available themes
+
 ## [0.1.0] - 2025-09-23
 
 ### Added
