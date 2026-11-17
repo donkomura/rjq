@@ -27,10 +27,11 @@ fn test_query_execution_flow() {
     let json_data = json!({"items": [1, 2, 3], "name": "test"});
     let app = App::new(json_data);
 
-    // 基本的なクエリ実行のテスト
-    // 注意: execute_current_query()は空のクエリでエラーになるため、
-    // 実際のクエリ処理は他のテストで行う
-    assert!(app.data().get().is_object());
+    let mut app = app;
+    for c in ".name".chars() {
+        app.push_char(c);
+    }
+    assert_eq!(vec!["\"test\"".to_string()], app.visible_lines(10));
 }
 
 #[test]
