@@ -1,7 +1,12 @@
+use std::time::Duration;
+
+const DEFAULT_NO_MATCH_DELAY: Duration = Duration::from_secs(1);
+
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub prompt: &'static str,
     pub visible_height: usize,
+    pub no_match_delay: Duration,
 }
 
 impl Default for AppConfig {
@@ -9,6 +14,7 @@ impl Default for AppConfig {
         Self {
             prompt: "query > ",
             visible_height: 20,
+            no_match_delay: DEFAULT_NO_MATCH_DELAY,
         }
     }
 }
@@ -18,6 +24,7 @@ impl AppConfig {
         Self {
             prompt,
             visible_height: 20,
+            no_match_delay: DEFAULT_NO_MATCH_DELAY,
         }
     }
 
@@ -25,6 +32,7 @@ impl AppConfig {
         Self {
             prompt: "query > ",
             visible_height,
+            no_match_delay: DEFAULT_NO_MATCH_DELAY,
         }
     }
 
@@ -32,6 +40,7 @@ impl AppConfig {
         Self {
             prompt,
             visible_height,
+            no_match_delay: DEFAULT_NO_MATCH_DELAY,
         }
     }
 }
@@ -45,6 +54,7 @@ mod tests {
         let config = AppConfig::default();
         assert_eq!(config.prompt, "query > ");
         assert_eq!(config.visible_height, 20);
+        assert_eq!(config.no_match_delay, std::time::Duration::from_secs(1));
     }
 
     #[test]

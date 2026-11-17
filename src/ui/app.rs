@@ -29,10 +29,15 @@ impl App {
     ) -> crate::Result<()> {
         while !self.should_exit() {
             self.receive_inputs(&inputs, Instant::now() + INPUT_BUDGET_PER_FRAME);
+            self.tick(Instant::now());
             terminal.draw(|frame| self.draw(frame))?;
-            let wait = match self.load_state() {
+            let interval = match self.load_state() {
                 LoadState::Loading => LOADING_POLL_INTERVAL,
                 _ => IDLE_POLL_INTERVAL,
+            };
+            let wait = match self.next_deadline() {
+                Some(deadline) => interval.min(deadline.saturating_duration_since(Instant::now())),
+                None => interval,
             };
             if event::poll(wait)?
                 && let Event::Key(key_event) = event::read()?

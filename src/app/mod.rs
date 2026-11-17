@@ -33,12 +33,46 @@ pub enum LoadState {
 
 const IDENTITY_QUERY: &str = ".";
 
+struct QueryRun {
+    source: String,
+    query: CompiledQuery,
+    outputs: PrettyDocument,
+    matched: bool,
+}
+
+impl QueryRun {
+    fn new(source: String, query: CompiledQuery, inputs: &[Val]) -> Self {
+        let mut run = Self {
+            matched: source == IDENTITY_QUERY,
+            source,
+            query,
+            outputs: PrettyDocument::new(),
+        };
+        for input in inputs {
+            run.push(input);
+        }
+        run
+    }
+
+    fn push(&mut self, input: &Val) {
+        for output in self.query.run(input.clone()) {
+            self.matched |= !matches!(output, Val::Null);
+            self.outputs.push(output);
+        }
+    }
+}
+
+struct Candidate {
+    evaluation: Result<QueryRun, AppError>,
+    deadline: Instant,
+}
+
 pub struct App {
     config: AppConfig,
     state: AppState,
     inputs: Vec<Val>,
-    query: Option<CompiledQuery>,
-    outputs: PrettyDocument,
+    shown: QueryRun,
+    candidate: Option<Candidate>,
     load_state: LoadState,
 }
 
@@ -55,16 +89,15 @@ impl App {
     }
 
     pub fn loading(config: AppConfig) -> Self {
-        let mut app = Self {
+        let identity = CompiledQuery::compile(IDENTITY_QUERY).expect("identity query compiles");
+        Self {
             config,
             state: AppState::default(),
             inputs: Vec::new(),
-            query: None,
-            outputs: PrettyDocument::new(),
+            shown: QueryRun::new(IDENTITY_QUERY.to_string(), identity, &[]),
+            candidate: None,
             load_state: LoadState::Loading,
-        };
-        app.rerun_query();
-        app
+        }
     }
 
     pub fn push_input(&mut self, value: serde_json::Value) {
@@ -72,12 +105,24 @@ impl App {
     }
 
     fn push_val(&mut self, input: Val) {
-        if let Some(query) = &self.query {
-            for output in query.run(input.clone()) {
-                self.outputs.push(output);
-            }
+        self.shown.push(&input);
+        if let Some(Candidate {
+            evaluation: Ok(run),
+            ..
+        }) = &mut self.candidate
+        {
+            run.push(&input);
         }
         self.inputs.push(input);
+        if let Some(Candidate {
+            evaluation: Ok(run),
+            ..
+        }) = self
+            .candidate
+            .take_if(|c| matches!(&c.evaluation, Ok(run) if run.matched))
+        {
+            self.show(run);
+        }
     }
 
     pub fn finish_loading(&mut self) {
@@ -97,25 +142,37 @@ impl App {
     }
 
     pub fn total_lines(&self) -> usize {
-        match self.query {
-            Some(_) => self.outputs.total_lines(),
-            None => 0,
-        }
+        self.shown.outputs.total_lines()
     }
 
     pub fn visible_lines(&self, height: usize) -> Vec<String> {
-        match self.query {
-            Some(_) => self.outputs.lines(self.state.scroll_offset, height),
-            None => Vec::new(),
-        }
+        self.shown.outputs.lines(self.state.scroll_offset, height)
     }
 
     pub fn status_line(&self) -> String {
         let count = self.inputs.len();
-        match &self.load_state {
+        let load = match &self.load_state {
             LoadState::Loading => format!("loading... {count} values"),
             LoadState::Finished => format!("{count} values"),
             LoadState::Failed(message) => format!("input error after {count} values: {message}"),
+        };
+        match self.candidate {
+            Some(_) => format!("{load} | showing: {}", self.shown.source),
+            None => load,
+        }
+    }
+
+    pub fn next_deadline(&self) -> Option<Instant> {
+        self.candidate.as_ref().map(|c| c.deadline)
+    }
+
+    pub fn tick(&mut self, now: Instant) {
+        let Some(candidate) = self.candidate.take_if(|c| now >= c.deadline) else {
+            return;
+        };
+        match candidate.evaluation {
+            Ok(run) => self.show(run),
+            Err(error) => self.state.last_error = Some(error),
         }
     }
 
@@ -135,18 +192,30 @@ impl App {
         }
     }
 
+    fn show(&mut self, run: QueryRun) {
+        self.shown = run;
+        self.state.reset_scroll();
+    }
+
     fn rerun_query(&mut self) {
-        self.outputs.clear();
+        self.state.last_error = None;
+        self.candidate = None;
         let source = match self.state.input.as_str() {
             "" => IDENTITY_QUERY,
             input => input,
         };
-        self.query = CompiledQuery::compile(source).ok();
-        if let Some(query) = &self.query {
-            for input in &self.inputs {
-                for output in query.run(input.clone()) {
-                    self.outputs.push(output);
-                }
+        if source == self.shown.source {
+            return;
+        }
+        let evaluation = CompiledQuery::compile(source)
+            .map(|query| QueryRun::new(source.to_string(), query, &self.inputs));
+        match evaluation {
+            Ok(run) if run.matched => self.show(run),
+            evaluation => {
+                self.candidate = Some(Candidate {
+                    evaluation,
+                    deadline: Instant::now() + self.config.no_match_delay,
+                })
             }
         }
     }
@@ -233,6 +302,7 @@ impl App {
 mod tests {
     use super::*;
     use serde_json::{Value, json};
+    use std::time::Duration;
 
     fn type_query(app: &mut App, query: &str) {
         for c in query.chars() {
@@ -266,8 +336,16 @@ mod tests {
                 ".items[]",
                 pretty_lines(&json!([1, 2])),
             ),
-            ("no outputs", "empty", vec!["null".to_string()]),
-            ("compile error shows nothing", ".[", vec![]),
+            (
+                "no outputs keeps the last matching result",
+                "empty",
+                pretty_lines(&json!({"name": "test", "items": [1, 2]})),
+            ),
+            (
+                "compile error keeps the last matching result",
+                ".[",
+                pretty_lines(&json!({"name": "test", "items": [1, 2]})),
+            ),
         ];
 
         for (name, query, expected) in tests {
@@ -295,6 +373,136 @@ mod tests {
 
         app.apply_suggestion(".ab".to_string());
         assert_eq!(vec!["2".to_string()], app.visible_lines(10));
+    }
+
+    fn after_no_match_delay() -> Instant {
+        Instant::now() + AppConfig::default().no_match_delay + Duration::from_millis(100)
+    }
+
+    #[test]
+    fn test_unmatched_query_keeps_last_matching_preview() {
+        let metadata = pretty_lines(&json!({"name": "rjq", "version": null}));
+        let tests = vec![
+            ("compile error", ".metadata."),
+            ("all outputs are null", ".metadata.na"),
+            ("runtime error", ".metadata[0]"),
+        ];
+
+        for (name, query) in tests {
+            let mut app = App::new(json!({"metadata": {"name": "rjq", "version": null}}));
+            type_query(&mut app, ".metadata");
+            type_query(&mut app, &query[".metadata".len()..]);
+
+            assert_eq!(metadata, app.visible_lines(10), "{name}");
+            assert_eq!(metadata.len(), app.total_lines(), "{name}");
+            assert_eq!("1 values | showing: .metadata", app.status_line(), "{name}");
+        }
+    }
+
+    #[test]
+    fn test_matching_query_is_shown_immediately() {
+        let mut app = App::new(json!({"metadata": {"name": "rjq"}}));
+        type_query(&mut app, ".metadata.name");
+
+        assert_eq!(vec!["\"rjq\"".to_string()], app.visible_lines(10));
+        assert_eq!("1 values", app.status_line());
+        assert_eq!(None, app.next_deadline());
+    }
+
+    #[test]
+    fn test_partially_null_outputs_are_a_match() {
+        let mut app = App::new(json!([1, null]));
+        type_query(&mut app, ".[]");
+
+        assert_eq!(pretty_lines(&json!([1, null])), app.visible_lines(10));
+    }
+
+    #[test]
+    fn test_unmatched_query_is_shown_after_no_match_delay() {
+        let mut app = App::new(json!({"metadata": {"name": "rjq"}}));
+        type_query(&mut app, ".metadata.na");
+        assert!(app.next_deadline().is_some());
+
+        app.tick(Instant::now());
+        assert_eq!(pretty_lines(&json!({"name": "rjq"})), app.visible_lines(10));
+
+        app.tick(after_no_match_delay());
+        assert_eq!(vec!["null".to_string()], app.visible_lines(10));
+        assert_eq!("1 values", app.status_line());
+        assert_eq!(None, app.next_deadline());
+    }
+
+    #[test]
+    fn test_compile_error_is_reported_after_no_match_delay() {
+        let mut app = App::new(json!({"metadata": {"name": "rjq"}}));
+        type_query(&mut app, ".metadata.");
+
+        app.tick(after_no_match_delay());
+        assert!(matches!(app.last_error(), Some(AppError::QueryCompile(_))));
+        assert_eq!("1 values", app.status_line());
+
+        app.push_char('n');
+        assert!(app.last_error().is_none());
+        assert_eq!(pretty_lines(&json!({"name": "rjq"})), app.visible_lines(10));
+    }
+
+    #[test]
+    fn test_no_match_delay_is_configurable() {
+        let config = AppConfig {
+            no_match_delay: Duration::from_secs(5),
+            ..AppConfig::default()
+        };
+        let mut app = App::with_config(json!({"a": 1}), config);
+        type_query(&mut app, ".b");
+
+        app.tick(after_no_match_delay());
+        assert_eq!(pretty_lines(&json!({"a": 1})), app.visible_lines(10));
+
+        app.tick(Instant::now() + Duration::from_secs(6));
+        assert_eq!(vec!["null".to_string()], app.visible_lines(10));
+    }
+
+    #[test]
+    fn test_editing_back_to_shown_query_cancels_pending_result() {
+        let mut app = App::new(json!({"a": 1}));
+        type_query(&mut app, ".a.");
+        app.pop_char();
+
+        assert_eq!(vec!["1".to_string()], app.visible_lines(10));
+        assert_eq!("1 values", app.status_line());
+        assert_eq!(None, app.next_deadline());
+    }
+
+    #[test]
+    fn test_empty_query_always_shows_identity() {
+        let mut app = App::new(json!(null));
+        type_query(&mut app, ".a");
+        app.clear_input();
+
+        assert_eq!(vec!["null".to_string()], app.visible_lines(10));
+        assert_eq!("1 values", app.status_line());
+    }
+
+    #[test]
+    fn test_streaming_inputs_while_query_is_unmatched() {
+        let mut app = App::loading(AppConfig::default());
+        app.push_input(json!({"id": 1, "tag": null}));
+        type_query(&mut app, ".id");
+        type_query(&mut app, ".");
+
+        app.push_input(json!({"id": 2, "tag": null}));
+        assert_eq!(pretty_lines(&json!([1, 2])), app.visible_lines(10));
+
+        app.clear_input();
+        type_query(&mut app, ".tag");
+        assert_eq!("loading... 2 values | showing: .", app.status_line());
+
+        app.push_input(json!({"id": 3, "tag": "new"}));
+        assert_eq!(
+            pretty_lines(&json!([null, null, "new"])),
+            app.visible_lines(10)
+        );
+        assert_eq!("loading... 3 values", app.status_line());
     }
 
     #[test]
