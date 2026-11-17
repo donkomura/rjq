@@ -10,4 +10,6 @@ pub enum AppError {
     QueryExecution(String),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("Theme error: {0}")]
+    Theme(#[from] crate::ui::ThemeError),
 }

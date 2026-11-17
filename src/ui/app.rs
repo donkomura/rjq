@@ -110,7 +110,7 @@ impl Widget for &App {
             let visible_lines = self.visible_lines(chunks[1].height as usize);
 
             // JSONにシンタックスハイライトを適用
-            let highlighter = SyntaxHighlighter::new();
+            let highlighter = SyntaxHighlighter::with_theme(*self.theme());
             let highlighted_lines: Vec<Line> = visible_lines
                 .iter()
                 .map(|line| highlighter.highlight_line(line))

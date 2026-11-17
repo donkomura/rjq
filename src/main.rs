@@ -5,7 +5,8 @@ use std::fs::File;
 use std::io::{self, IsTerminal, Read};
 use std::time::Duration;
 
-use rjq::{App, AppConfig, Result, restore_terminal, spawn_reader};
+use rjq::ui::theme::{DEFAULT_THEME, default_themes_dir};
+use rjq::{App, AppConfig, Result, ThemeCatalog, restore_terminal, spawn_reader};
 
 /// A command-line jq processor with interactive TUI
 #[derive(Parser, Debug, Clone, PartialEq)]
@@ -20,6 +21,14 @@ struct CliArgs {
     /// Seconds to keep showing the last matching result while the query matches nothing
     #[arg(long, value_name = "SECONDS", default_value = "1", value_parser = parse_seconds)]
     no_match_delay: Duration,
+
+    /// Syntax highlighting theme: a built-in name, a name in ~/.config/rjq/themes, or a .tmTheme file path
+    #[arg(long, value_name = "NAME|PATH", env = "RJQ_THEME")]
+    theme: Option<String>,
+
+    /// List available syntax highlighting themes and exit
+    #[arg(long)]
+    list_themes: bool,
 }
 
 fn parse_seconds(value: &str) -> std::result::Result<Duration, String> {
@@ -44,6 +53,16 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli_args = CliArgs::parse();
+    let catalog = ThemeCatalog::new(default_themes_dir());
+
+    if cli_args.list_themes {
+        for name in catalog.names()? {
+            println!("{name}");
+        }
+        return Ok(());
+    }
+
+    let theme = catalog.resolve(cli_args.theme.as_deref().unwrap_or(DEFAULT_THEME))?;
 
     let reader = open_input(cli_args.file.as_deref(), io::stdin().is_terminal())?;
     let inputs = spawn_reader(reader);
@@ -61,7 +80,8 @@ fn run() -> Result<()> {
     let config = AppConfig {
         no_match_delay: cli_args.no_match_delay,
         ..AppConfig::default()
-    };
+    }
+    .with_theme(theme);
     let mut app = App::loading(config);
     let res = app.run(&mut terminal, inputs);
 
@@ -130,6 +150,27 @@ mod tests {
         for value in ["-1", "abc", "inf", "NaN"] {
             let result = CliArgs::try_parse_from(["rjq", "--no-match-delay", value]);
             assert!(result.is_err(), "{value}");
+        }
+    }
+
+    #[test]
+    fn test_cli_args_theme() {
+        use clap::Parser;
+        let tests = vec![
+            ("no theme", vec!["rjq"], None, false),
+            (
+                "theme name",
+                vec!["rjq", "--theme", "base16-ocean.dark"],
+                Some("base16-ocean.dark".to_string()),
+                false,
+            ),
+            ("list themes", vec!["rjq", "--list-themes"], None, true),
+        ];
+
+        for (name, argv, theme, list_themes) in tests {
+            let args = CliArgs::parse_from(argv);
+            assert_eq!(theme, args.theme, "{name}");
+            assert_eq!(list_themes, args.list_themes, "{name}");
         }
     }
 

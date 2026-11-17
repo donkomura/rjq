@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Selectable syntax highlighting themes via `--theme <NAME|PATH>` or `RJQ_THEME`
+  - Built-in themes: `ansi` (default) and the themes bundled with syntect
+  - External TextMate `.tmTheme` files, by path or by name from `~/.config/rjq/themes`
+- `--list-themes` to show available themes
+
 ## [0.1.0] - 2025-09-23
 
 ### Added

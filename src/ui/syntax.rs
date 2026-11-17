@@ -1,4 +1,5 @@
-use ratatui::style::{Color, Style};
+use super::theme::Theme;
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 /// JSONのトークンタイプ
@@ -24,7 +25,9 @@ pub struct Token {
 }
 
 /// JSONシンタックスハイライター
-pub struct SyntaxHighlighter;
+pub struct SyntaxHighlighter {
+    theme: Theme,
+}
 
 impl Default for SyntaxHighlighter {
     fn default() -> Self {
@@ -34,7 +37,11 @@ impl Default for SyntaxHighlighter {
 
 impl SyntaxHighlighter {
     pub fn new() -> Self {
-        Self
+        Self::with_theme(Theme::default())
+    }
+
+    pub fn with_theme(theme: Theme) -> Self {
+        Self { theme }
     }
 
     /// JSONをトークンに分解
@@ -199,16 +206,7 @@ impl SyntaxHighlighter {
 
     /// トークンタイプに応じたスタイルを取得
     pub fn get_style(&self, token_type: &TokenType) -> Style {
-        match token_type {
-            TokenType::String => Style::default().fg(Color::Green),
-            TokenType::Number => Style::default().fg(Color::Cyan),
-            TokenType::Boolean => Style::default().fg(Color::Yellow),
-            TokenType::Null => Style::default().fg(Color::Gray),
-            TokenType::Key => Style::default().fg(Color::Blue),
-            TokenType::Bracket => Style::default().fg(Color::White),
-            TokenType::Punctuation => Style::default().fg(Color::Gray),
-            TokenType::Default => Style::default(),
-        }
+        self.theme.style(token_type)
     }
 
     /// 入力文字列をハイライトされたSpanのベクタに変換
@@ -412,6 +410,19 @@ mod tests {
 
         // ラインが作成されることを確認
         assert!(!line.spans.is_empty());
+    }
+
+    #[test]
+    fn test_highlight_uses_given_theme() {
+        let theme = crate::ui::ThemeCatalog::new(None)
+            .resolve("base16-ocean.dark")
+            .unwrap();
+        let highlighter = SyntaxHighlighter::with_theme(theme);
+
+        let spans = highlighter.highlight(r#"{"a": 1}"#);
+
+        let number = spans.iter().find(|s| s.content == "1").unwrap();
+        assert_eq!(theme.style(&TokenType::Number), number.style);
     }
 
     #[test]
