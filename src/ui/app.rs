@@ -1,6 +1,7 @@
 use super::events::{get_action, update};
 use super::syntax::SyntaxHighlighter;
-use crate::app::App;
+use crate::app::{App, LoadState};
+use crate::input::InputEvent;
 use crossterm::event::{self, Event, KeyEvent};
 use ratatui::{
     Frame, Terminal,
@@ -11,12 +12,31 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Paragraph, Widget},
 };
+use std::sync::mpsc::Receiver;
+use std::time::{Duration, Instant};
+
+const INPUT_BUDGET_PER_FRAME: Duration = Duration::from_millis(16);
+// While loading, waking up every frame lets newly parsed values show up promptly
+// without spinning when the input arrives slowly (e.g. `tail -f log.jsonl | rjq`).
+const LOADING_POLL_INTERVAL: Duration = Duration::from_millis(16);
+const IDLE_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 impl App {
-    pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> crate::Result<()> {
+    pub fn run<B: Backend>(
+        &mut self,
+        terminal: &mut Terminal<B>,
+        inputs: Receiver<InputEvent>,
+    ) -> crate::Result<()> {
         while !self.should_exit() {
+            self.receive_inputs(&inputs, Instant::now() + INPUT_BUDGET_PER_FRAME);
             terminal.draw(|frame| self.draw(frame))?;
-            if let Event::Key(key_event) = event::read()? {
+            let wait = match self.load_state() {
+                LoadState::Loading => LOADING_POLL_INTERVAL,
+                _ => IDLE_POLL_INTERVAL,
+            };
+            if event::poll(wait)?
+                && let Event::Key(key_event) = event::read()?
+            {
                 self.handle_events(key_event)?;
             }
         }
@@ -67,7 +87,11 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+            ])
             .split(area);
 
         // プロンプト行を候補付きで描画
@@ -78,30 +102,7 @@ impl Widget for &App {
             let error_paragraph = Paragraph::new(error_text);
             error_paragraph.render(chunks[1], buf);
         } else {
-            let result_text = match self.execute_current_query() {
-                Ok(result) => result.format_pretty(),
-                Err(_) => {
-                    if self.input().is_empty() {
-                        serde_json::to_string_pretty(self.data().get())
-                            .unwrap_or_else(|_| "Error formatting JSON".to_string())
-                    } else {
-                        "".to_string()
-                    }
-                }
-            };
-
-            // Apply scrolling by skipping lines based on scroll_offset
-            let lines: Vec<&str> = result_text.lines().collect();
-            let available_height = chunks[1].height as usize;
-
-            // Use current scroll offset as-is (bounds are enforced during scroll operations)
-            let scroll_offset = self.scroll_offset();
-            let visible_lines: Vec<&str> = lines
-                .iter()
-                .skip(scroll_offset)
-                .take(available_height)
-                .copied()
-                .collect();
+            let visible_lines = self.visible_lines(chunks[1].height as usize);
 
             // JSONにシンタックスハイライトを適用
             let highlighter = SyntaxHighlighter::new();
@@ -113,5 +114,9 @@ impl Widget for &App {
             let json_paragraph = Paragraph::new(highlighted_lines);
             json_paragraph.render(chunks[1], buf);
         }
+
+        Paragraph::new(self.status_line())
+            .style(Style::default().fg(Color::DarkGray))
+            .render(chunks[2], buf);
     }
 }

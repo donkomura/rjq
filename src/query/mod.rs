@@ -1,6 +1,8 @@
 pub mod cache;
 pub mod cached_executor;
+pub mod compiled;
 pub mod executor;
+pub mod value;
 
 use crate::app::error::AppError;
 use jaq_core::{
@@ -11,7 +13,9 @@ use jaq_json::Val;
 
 pub use cache::{InMemoryQueryCache, QueryCache};
 pub use cached_executor::CachedQueryExecutor;
+pub use compiled::CompiledQuery;
 pub use executor::{JaqQueryExecutor, QueryExecutor};
+pub use value::into_val;
 
 #[derive(Debug)]
 pub enum QueryResult {

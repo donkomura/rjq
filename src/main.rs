@@ -1,10 +1,10 @@
 use clap::Parser;
 use crossterm::{event::EnableMouseCapture, execute, terminal::enable_raw_mode};
 use ratatui::{Terminal, backend::CrosstermBackend};
-use std::fs;
-use std::io::{self, Read};
+use std::fs::File;
+use std::io::{self, IsTerminal, Read};
 
-use rjq::{App, Result, restore_terminal};
+use rjq::{App, AppConfig, Result, restore_terminal, spawn_reader};
 
 /// A command-line jq processor with interactive TUI
 #[derive(Parser, Debug, Clone, PartialEq)]
@@ -17,32 +17,26 @@ struct CliArgs {
     file: Option<String>,
 }
 
-fn load_json_data(args: &CliArgs, stdin_input: &str) -> Result<serde_json::Value> {
-    if let Some(file_path) = &args.file {
-        let file_content = fs::read_to_string(file_path)?;
-        Ok(serde_json::from_str(&file_content)?)
-    } else if stdin_input.trim().is_empty() {
-        Ok(serde_json::Value::Null)
-    } else {
-        Ok(serde_json::from_str(stdin_input)?)
+fn open_input(file: Option<&str>, stdin_is_terminal: bool) -> io::Result<Box<dyn Read + Send>> {
+    match file {
+        Some(path) => Ok(Box::new(File::open(path)?)),
+        None if stdin_is_terminal => Ok(Box::new(io::empty())),
+        None => Ok(Box::new(io::stdin())),
     }
 }
 
-fn read_stdin() -> std::result::Result<String, std::io::Error> {
-    if atty::is(atty::Stream::Stdin) {
-        Ok(String::new())
-    } else {
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
     }
 }
 
-fn main() -> Result<()> {
+fn run() -> Result<()> {
     let cli_args = CliArgs::parse();
 
-    let input_string = read_stdin()?;
-    let json_value = load_json_data(&cli_args, &input_string)?;
+    let reader = open_input(cli_args.file.as_deref(), io::stdin().is_terminal())?;
+    let inputs = spawn_reader(reader);
 
     enable_raw_mode()?;
     let mut stderr = std::io::stderr();
@@ -54,16 +48,12 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stderr);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(json_value);
-    let res = app.run(&mut terminal);
+    let mut app = App::loading(AppConfig::default());
+    let res = app.run(&mut terminal, inputs);
 
     restore_terminal(&mut terminal).ok();
 
-    if let Err(e) = res {
-        eprintln!("Error: {}", e);
-    }
-
-    Ok(())
+    res
 }
 
 #[cfg(test)]
@@ -110,37 +100,41 @@ mod tests {
     }
 
     #[test]
-    fn test_load_json_from_stdin_empty() {
-        use clap::Parser;
-        let args = CliArgs::parse_from(["rjq"]);
-        let result = load_json_data(&args, "").unwrap();
-        assert_eq!(result, serde_json::Value::Null);
+    fn test_open_input() {
+        let path = std::env::temp_dir().join(format!("rjq_open_input_{}.json", std::process::id()));
+        fs::write(&path, r#"{"test": "file_data"}"#).unwrap();
+        let path_str = path.to_str().unwrap().to_string();
+
+        let tests = vec![
+            (
+                "file is read even when stdin is a terminal",
+                Some(path_str.clone()),
+                true,
+                r#"{"test": "file_data"}"#,
+            ),
+            (
+                "terminal stdin without file yields no input",
+                None,
+                true,
+                "",
+            ),
+        ];
+
+        for (name, file, stdin_is_terminal, expected) in tests {
+            let mut content = String::new();
+            open_input(file.as_deref(), stdin_is_terminal)
+                .unwrap()
+                .read_to_string(&mut content)
+                .unwrap();
+            assert_eq!(expected, content, "{name}");
+        }
+        fs::remove_file(path).ok();
     }
 
     #[test]
-    fn test_load_json_from_stdin_with_data() {
-        use clap::Parser;
-        let args = CliArgs::parse_from(["rjq"]);
-        let input = r#"{"key": "value"}"#;
-        let result = load_json_data(&args, input).unwrap();
-        assert_eq!(result, json!({"key": "value"}));
-    }
+    fn test_open_input_missing_file() {
+        let result = open_input(Some("/nonexistent/rjq/input.json"), true);
 
-    #[test]
-    fn test_load_json_from_file() {
-        use clap::Parser;
-        let temp_file = "test_temp.json";
-        let test_data = json!({"test": "file_data"});
-
-        // Create temporary test file
-        fs::write(temp_file, test_data.to_string()).expect("Failed to write test file");
-
-        let args = CliArgs::parse_from(["rjq", "-f", temp_file]);
-        let result = load_json_data(&args, "").unwrap();
-
-        // Clean up
-        fs::remove_file(temp_file).ok();
-
-        assert_eq!(result, test_data);
+        assert!(result.is_err());
     }
 }
