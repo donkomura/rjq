@@ -813,7 +813,7 @@ checksum = "943f41321c63ef1c92fd763bfe054d2668f7f225a5c29f0105903dc2fc04ba30"
 
 [[package]]
 name = "rjq"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "crossterm 0.29.0",
