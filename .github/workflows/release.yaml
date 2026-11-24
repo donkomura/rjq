@@ -55,3 +55,40 @@ jobs:
           bin: rjq
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
+  update-homebrew-tap:
+    name: Update Homebrew tap
+    needs: upload-assets
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/generate-homebrew-formula.sh "${{ github.ref_name }}" > rjq.rb
+
+      - name: Create tap token
+        id: tap-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.HOMEBREW_TAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          owner: donkomura
+          repositories: homebrew-tap
+          permission-contents: write
+
+      - name: Update formula
+        env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+          FORMULA_PATH: repos/donkomura/homebrew-tap/contents/Formula/rjq.rb
+        run: |
+          current=$(gh api "$FORMULA_PATH")
+          if jq -r .content <<< "$current" | base64 -d | cmp -s - rjq.rb; then
+            exit 0
+          fi
+          gh api --method PUT "$FORMULA_PATH" \
+            -f message="feat: rjq を ${{ github.ref_name }} に更新する" \
+            -f content="$(base64 -w0 rjq.rb)" \
+            -f sha="$(jq -r .sha <<< "$current")"
