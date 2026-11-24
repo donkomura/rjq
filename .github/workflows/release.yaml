@@ -55,3 +55,33 @@ jobs:
           bin: rjq
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
+  update-homebrew-tap:
+    name: Update Homebrew tap
+    needs: upload-assets
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          repository: donkomura/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Generate formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/generate-homebrew-formula.sh "${{ github.ref_name }}" > homebrew-tap/Formula/rjq.rb
+
+      - name: Push formula
+        working-directory: homebrew-tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/rjq.rb
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: rjq を ${{ github.ref_name }} に更新する"
+          git push

@@ -13,6 +13,12 @@ An interactive CLI tool for JSON querying.
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew install donkomura/tap/rjq
+```
+
 ### From Source
 
 ```bash
